@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
 
 #define BAUDRATE B9600
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -20,6 +21,8 @@ int main(int argc, char** argv)
     int fd,c, res;
     struct termios oldtio,newtio;
     char buf[255];
+
+    int i = 0;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS0", argv[1])!=0) &&
@@ -51,8 +54,8 @@ int main(int argc, char** argv)
     /* set input mode (non-canonical, no echo,...) */
     newtio.c_lflag = 0;
 
-    newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-    newtio.c_cc[VMIN]     = 3;   /* blocking read until 5 chars received */
+    newtio.c_cc[VTIME]    = 10;   /* inter-character timer unused */
+    newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
 
 
@@ -73,14 +76,31 @@ int main(int argc, char** argv)
     printf("New termios structure set\n");
 
 
-    while (STOP==FALSE) {       /* loop for input */
-      res = read(fd,buf,255);   /* returns after 5 chars have been input */
-      buf[res]=0;               /* so we can printf... */
-      printf(":%s:%d\n", buf, res);
-      if (buf[res]=='\0') STOP=TRUE;
-    }
+    // while (STOP==FALSE) {       /* loop for input */
+    //   res = read(fd,buf,255);   /* returns after 5 chars have been input */
+    //   buf[res]=0;               /* so we can printf... */
+    //   printf(":%s:%d\n", buf, res);
+    //   if (buf[res]=='\0') STOP=TRUE;
+    // }
 
+    while(STOP==FALSE){       /* loop for input */
 
+  		res=read(fd,&buf[i], 1);  /* read each character at a time */
+
+  		if(res<0){
+  			printf("Reading error");
+  			exit(1);
+  		}
+  		if(buf [i]=='\0'){  /* reached end of message */
+  			STOP=TRUE;
+  		}else{
+  			i++;     /* next character */
+  		}
+	  }
+
+	  printf("%s\n", buf);
+
+    res = write(fd,buf,strlen(buf)+1);
 
   /*
     O ciclo WHILE deve ser alterado de modo a respeitar o indicado no gui�o
