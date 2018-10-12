@@ -4,6 +4,8 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 
 #define BAUDRATE B9600
@@ -33,7 +35,7 @@ int main(int argc, char const *argv[]) {
 */
 
   fd = open(argv[1], O_RDWR | O_NOCTTY );
-  if (fd <0) {perror(argv[1]); exit(-1); }
+  if (fd < 0) {perror(argv[1]); exit(-1); }
 
   if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
     perror("tcgetattr");
@@ -49,11 +51,11 @@ int main(int argc, char const *argv[]) {
   newtio.c_lflag = 0;
 
   newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-  newtio.c_cc[VMIN]     = 5;   /* blocking read until 5 chars received */
+  newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
 
 /*
   VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
-  leitura do(s) pr�ximo(s) caracter(es)
+  leitura do(s) proximo(s) caracter(es)
 */
 
   tcflush(fd, TCIOFLUSH);
@@ -65,17 +67,34 @@ int main(int argc, char const *argv[]) {
 
   printf("New termios structure set\n");
 
-  printf("Diga algo: ");
-  gets(buf);
-  buf[4]='\0';
+  printf("Diga algo: \n");
+  ssize_t n = read(STDIN_FILENO, buf, 255);
+  buf[n-1]='\0';
 
-  res = write(fd,buf,255);
+  res = write(fd,buf,n);
   printf("%d bytes written\n", res);
 
 /*
-  O ciclo FOR e as instru��es seguintes devem ser alterados de modo a respeitar
-  o indicado no gui�o
+  O ciclo FOR e as instrucoes seguintes devem ser alterados de modo a respeitar
+  o indicado no guiao
 */
+  i = 0;
+  while (STOP == FALSE) {
+    res = read(fd, &buf[i], 1);
+
+    if (res < 0) {
+      printf("You are dumb af...\n");
+      exit(-1);
+    }
+    else if (buf[i] == '\0') {
+      STOP = TRUE;
+    }
+    else {
+      i++;
+    }
+  }
+
+  printf("%s:%d\n", buf, i);
 
   if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
     perror("tcsetattr");
