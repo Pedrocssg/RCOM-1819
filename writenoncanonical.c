@@ -1,19 +1,7 @@
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <termios.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "macros.h"
 
-
-#define BAUDRATE B9600
-#define MODEMDEVICE "/dev/ttyS1"
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
-#define FALSE 0
-#define TRUE 1
-
+unsigned char set[5] = {FLAG,A,SET_C,SET_BCC,FLAG};
+unsigned char ua[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
 volatile int STOP=FALSE;
 
 int main(int argc, char const *argv[]) {
@@ -50,8 +38,8 @@ int main(int argc, char const *argv[]) {
   /* set input mode (non-canonical, no echo,...) */
   newtio.c_lflag = 0;
 
-  newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
-  newtio.c_cc[VMIN]     = 1;   /* blocking read until 5 chars received */
+  newtio.c_cc[VTIME]    = 30;   /* inter-character timer unused */
+  newtio.c_cc[VMIN]     = 0;   /* blocking read until n chars received */
 
 /*
   VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
@@ -67,11 +55,11 @@ int main(int argc, char const *argv[]) {
 
   printf("New termios structure set\n");
 
-  printf("Diga algo: \n");
-  ssize_t n = read(STDIN_FILENO, buf, 255);
-  buf[n-1]='\0';
+  if ((res = write(fd,set,5)) == -1) {
+      printf("An error has occured.\n");
+      exit(-1);
+  }
 
-  res = write(fd,buf,n);
   printf("%d bytes written\n", res);
 
 /*
@@ -80,18 +68,52 @@ int main(int argc, char const *argv[]) {
 */
   i = 0;
   while (STOP == FALSE) {
-    res = read(fd, &buf[i], 1);
+      res = read(fd, &buf[i], 1);
 
-    if (res < 0) {
-      printf("You are dumb af...\n");
-      exit(-1);
-    }
-    else if (buf[i] == '\0') {
-      STOP = TRUE;
-    }
-    else {
-      i++;
-    }
+      if (res < 0) {
+          printf("You are dumb af...\n");
+          exit(-1);
+      }
+      else {
+          switch (i) {
+            case 0:
+                if (buf[i] == set[i])
+                    i++;
+                else
+                    i--;
+                break;
+            case 1:
+                if (buf[i] == set[i])
+                    i++;
+                else
+                    i--;
+                break;
+            case 2:
+                if (buf[i] == set[i])
+                    i++;
+                else
+                    i--;
+                break;
+            case 3:
+                if (buf[i] == set[i])
+                    i++;
+                else
+                    i--;
+                break;
+            case 4:
+                if (buf[i] == set[i]) {
+                    i++;
+                    STOP = TRUE;
+                }
+                else
+                    i--;
+                break;
+            default:
+                printf("There was an error or the message is not valid.\n");
+                exit(-1);
+                break;
+          }
+      }
   }
 
   printf("%s:%d\n", buf, i);
