@@ -2,15 +2,15 @@
 
 #include "macros.h"
 
-char set[5] = {FLAG,A,SET_C,SET_BCC,FLAG};
-char ua[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
+unsigned char set[5] = {FLAG,A,SET_C,SET_BCC,FLAG};
+unsigned char ua[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
 volatile int STOP=FALSE;
 
 int main(int argc, char** argv)
 {
     int fd,c, res;
     struct termios oldtio,newtio;
-    char buf[255];
+    unsigned char buf[255];
 
     int i = 0;
 
@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     /* set input mode (non-canonical, no echo,...) */
     newtio.c_lflag = 0;
 
-    newtio.c_cc[VTIME]    = 30;   /* inter-character timer unused */
+    newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
     newtio.c_cc[VMIN]     = 0;   /* blocking read until 5 chars received */
 
 
@@ -73,25 +73,58 @@ int main(int argc, char** argv)
     //   if (buf[res]=='\0') STOP=TRUE;
     // }
 
-    while(STOP==FALSE){       /* loop for input */
+    while (STOP == FALSE) {
+        res = read(fd, &buf[i], 1);
 
-  		res=read(fd,&buf[i], 1);  /* read each character at a time */
+        if (res < 0) {
+            printf("Error...\n");
+            exit(-1);
+        }
+        else if (res == 0)
+            continue;
+        else {
+            switch (i) {
+              case 0:
+                  if (buf[i] == set[i])
+                    i++;
+                  break;
+              case 1:
+                  if (buf[i] == set[i])
+                      i++;
+                  else
+                      i--;
+                  break;
+              case 2:
+                  if (buf[i] == set[i])
+                      i++;
+                  else
+                      i--;
+                  break;
+              case 3:
+                  if (buf[i] == set[i])
+                      i++;
+                  else
+                      i--;
+                  break;
+              case 4:
+                  if (buf[i] == set[i])
+                      STOP = TRUE;
+                  else
+                      i--;
+                  break;
+              default:
+                  printf("There was an error or the message is not valid.\n");
+                  exit(-1);
+                  break;
+            }
+        }
+    }
+if ((res = write(fd,ua,5)) == -1) {
+    printf("An error has occured.\n");
+    exit(-1);
+}
 
-  		if(res<0){
-  			printf("Reading error");
-  			exit(1);
-  		}
-  		if(buf [i]=='\0'){  /* reached end of message */
-  			STOP=TRUE;
-  		}else{
-  			i++;     /* next character */
-  		}
-	  }
-
-	  printf("%s\n", buf);
-
-    res = write(fd,buf,strlen(buf)+1);
-
+printf("%d bytes written\n", res);
   /*
     O ciclo WHILE deve ser alterado de modo a respeitar o indicado no gui�o
   */
