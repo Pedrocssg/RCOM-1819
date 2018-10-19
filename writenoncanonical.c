@@ -1,4 +1,4 @@
-#include "macros.h"
+#include "noncanonical.h"
 
 unsigned char set[5] = {FLAG,A,SET_C,SET_BCC,FLAG};
 unsigned char ua[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
@@ -81,7 +81,7 @@ int main(int argc, char const *argv[]) {
 
       res = read(fd, &buf[i], 1);
 
-      
+
       if (res < 0) {
           printf("There was an error while reading the buffer.\n");
           exit(-1);
@@ -91,33 +91,37 @@ int main(int argc, char const *argv[]) {
       }
       else {
           switch (i) {
-            case 0:
-                if (buf[i] == ua[i])
+            case START:
+                if (buf[i] == ua[0])
                     i++;
                 break;
-            case 1:
-                if (buf[i] == ua[i])
+            case FLAG_RCV:
+                if (buf[i] == ua[1])
                     i++;
+                else if (buf[i] != ua[0])
+                    i=0;
+                break;
+            case A_RCV:
+                if (buf[i] == ua[2])
+                    i++;
+                else if (buf[i] == ua[0])
+                    i = 1;
                 else
-                    i--;
+                    i=0;
                 break;
-            case 2:
-                if (buf[i] == ua[i])
+            case C_RCV:
+                if (buf[i] == ua[3])
                     i++;
+                else if (buf[i] == ua[0])
+                    i = 1;
                 else
-                    i--;
+                    i=0;
                 break;
-            case 3:
-                if (buf[i] == ua[i])
-                    i++;
-                else
-                    i--;
-                break;
-            case 4:
-                if (buf[i] == ua[i])
+            case BCC_OK:
+                if (buf[i] == ua[4])
                     STOP = TRUE;
                 else
-                    i--;
+                    i=0;
                 break;
             default:
                 printf("There was an error or the message is not valid.\n");
