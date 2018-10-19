@@ -89,14 +89,66 @@ int llopen(ApplicationLayer *appLayer) {
               return -1;
           }
 
-          printf("%d bytes written\n", res);
+          printf("SET sent, %d bytes written.\n", res);
       }
 
       if ((ret = stateMachineSupervision((*appLayer).fd, &i, ua)) == -1)
           return -1;
   }
 
-  printf("All went OK!\n");
+  printf("UA received.\n");
+  alarm(0);
+
+  return 0;
+}
+
+int llread() {
+    return 0;
+}
+
+int llwrite() {
+    return 0;
+}
+
+int llclose(ApplicationLayer *appLayer) {
+  conta = 1;
+  flag = 1;
+  STOP = FALSE;
+  int i = 0, res, ret;
+
+  while(conta < 4 && STOP == FALSE){
+      if(flag){
+          alarm(3);                 // activa alarme de 3s
+          flag=0;
+
+          if ((res = write((*appLayer).fd,disc,5)) == -1) {
+              printf("An error has occured writing the message.\n");
+              return -1;
+          }
+
+          printf("DISC sent, %d bytes written.\n", res);
+      }
+
+      if ((ret = stateMachineSupervision((*appLayer).fd, &i, disc)) == -1)
+          return -1;
+  }
+
+  printf("DISC received.\n");
+  alarm(0);
+
+  if ((res = write((*appLayer).fd,ua,5)) == -1) {
+      printf("An error has occured writing the message.\n");
+      return -1;
+  }
+
+  printf("UA sent, %d bytes written.\n", res);
+
+  if (tcsetattr((*appLayer).fd,TCSANOW,&(*appLayer).oldtio) == -1) {
+    perror("tcsetattr");
+    return -1;
+  }
+
+  close((*appLayer).fd);
 
   return 0;
 }
@@ -156,24 +208,4 @@ int stateMachineSupervision(int port, int *state, unsigned char *frame) {
     }
 
     return 0;
-}
-
-int llread() {
-    return 0;
-}
-
-int llwrite() {
-    return 0;
-}
-
-int llclose(ApplicationLayer *appLayer) {
-
-  if (tcsetattr((*appLayer).fd,TCSANOW,&(*appLayer).oldtio) == -1) {
-    perror("tcsetattr");
-    return -1;
-  }
-
-  close((*appLayer).fd);
-
-  return 0;
 }
