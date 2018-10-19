@@ -26,8 +26,9 @@ int main(int argc, char const *argv[]) {
     if(llopen(&appLayer) == -1)
         return -1;
 
+    if(llclose(&appLayer) == -1)
+        return -1;
 
-//   llclose();
 
   return 0;
 }
@@ -70,16 +71,58 @@ int llopen(ApplicationLayer *appLayer) {
 
     while (STOP == FALSE) {
 
-        if ((res = write((*appLayer).fd,ua,5)) == -1) {
-            printf("An error has occured.\n");
-            return -1;
-        }
-
          if((ret = stateMachineSupervision((*appLayer).fd,&i,set)) == -1)
             return -1;
     }
-        printf("%d bytes written\n", res);
 
+    printf("SET received\n");
+
+    if ((res = write((*appLayer).fd,ua,5)) == -1) {
+        printf("An error has occured.\n");
+        return -1;
+    }
+
+    printf("UA sent, %d bytes written\n", res);
+
+
+  return 0;
+}
+
+int llclose(ApplicationLayer *appLayer) {
+    
+    int res, ret, i = 0;
+    STOP = FALSE;
+
+    while (STOP == FALSE) {
+
+        if((ret = stateMachineSupervision((*appLayer).fd,&i,disc)) == -1)
+        return -1;
+    }
+
+    printf("DISC received\n");
+
+    if ((res = write((*appLayer).fd,disc,5)) == -1) {
+        printf("An error has occured.\n");
+        return -1;
+    }
+
+    printf("DISC sent, %d bytes written\n", res);
+
+    while (STOP == FALSE) {
+
+    if((ret = stateMachineSupervision((*appLayer).fd,&i,ua)) == -1)
+    return -1;
+    }
+    
+    printf("UA received\n");
+
+
+  if(tcsetattr((*appLayer).fd,TCSANOW,&(*appLayer).oldtio) == -1){
+      perror("tcsetattr");
+      return -1;
+  }
+    
+  close((*appLayer).fd);
 
   return 0;
 }
@@ -89,7 +132,6 @@ int stateMachineSupervision(int port, int *state, unsigned char *frame) {
   unsigned char buf;
  
   res = read(port, &buf, 1);
- 
   if (res < 0) {
       printf("There was an error while reading the buffer.\n");
       return -1;
@@ -139,13 +181,4 @@ int stateMachineSupervision(int port, int *state, unsigned char *frame) {
   }
 
   return 0;
-}
-
-int llclose(ApplicationLayer *appLayer) {
-  if(tcsetattr((*appLayer).fd,TCSANOW,&(*appLayer).oldtio) == -1){
-      perror("tcsetattr");
-      return -1;
-  }
-    
-  close((*appLayer).fd);
 }
