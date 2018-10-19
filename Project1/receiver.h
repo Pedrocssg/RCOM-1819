@@ -1,3 +1,4 @@
+#include "macros.h"
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -5,17 +6,18 @@
 #include <termios.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <signal.h>
-#include "macros.h"
 
-typedef struct {
-  int fd;
-  struct termios oldtio, newtio;
+typedef struct{
+    int fd;
+    struct termios oldtio, newtio;
 } ApplicationLayer;
 
+volatile int STOP=FALSE;
 int llopen(ApplicationLayer *appLayer);
-int stateMachineSupervision(int port, int *state, unsigned char *frame);
 int llread();
 int llwrite();
 int llclose(ApplicationLayer *appLayer);
+int stateMachineSupervision(int port, int *state, unsigned char *frame);

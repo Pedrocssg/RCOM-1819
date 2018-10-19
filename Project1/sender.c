@@ -1,152 +1,211 @@
 #include "sender.h"
 
+unsigned char set[5] = {FLAG,A,SET_C,SET_BCC,FLAG};
+unsigned char ua[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
+unsigned char disc[5] = {FLAG,A,DISC_C,SET_BCC,FLAG};
+volatile int STOP=FALSE;
+int flag=1, conta=1;
+
+void atende() {                  // atende alarme
+  printf("alarme # %d\n", conta);
+  flag=1;
+  conta++;
+}
+
 int main(int argc, char const *argv[]) {
-  if ( (argc < 2) || ((strcmp("/dev/ttyS0", argv[1])!=0) && z(strcmp("/dev/ttyS1", argv[1])!=0) )) {
+  if ( (argc < 2) || ((strcmp("/dev/ttyS0", argv[1])!=0) && (strcmp("/dev/ttyS1", argv[1])!=0) )) {
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS0\n");
     exit(1);
   }
 
-  llopen(argv[1]);
+  ApplicationLayer appLayer;
+
+  (void) signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
+
+  /*
+  Open serial port device for reading and writing and not as controlling tty
+  because we don't want to get killed if linenoise sends CTRL-C.
+  */
+
+  appLayer.fd = open(argv[1], O_RDWR | O_NOCTTY );
+  if (appLayer.fd < 0) {
+    perror(argv[1]);
+    return -1;
+  }
+
+  if (llopen(&appLayer) == -1) {
+      return -1;
+  }
 
 
-  llclose();
+
+  if (llclose(&appLayer) == -1) {
+      return -1;
+  }
 
   return 0;
 }
 
-int llopen(char serialPort[]) {
-  int fd,c, res;
-  struct termios oldtio,newtio;
-  unsigned char buf[255];
-  int i, sum = 0, speed = 0;
+int llopen(ApplicationLayer *appLayer) {
+  int i = 0, res, ret;
 
-  (void) signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
-
-/*
-  Open serial port device for reading and writing and not as controlling tty
-  because we don't want to get killed if linenoise sends CTRL-C.
-*/
-
-  fd = open(serialPort, O_RDWR | O_NOCTTY );
-  if (fd < 0) {
-    perror(serialPort);
-    exit(-1);
-  }
-
-  if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
+  if ( tcgetattr((*appLayer).fd,&(*appLayer).oldtio) == -1) { /* save current port settings */
     perror("tcgetattr");
-    exit(-1);
+    return -1;
   }
 
-  bzero(&newtio, sizeof(newtio));
-  newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-  newtio.c_iflag = IGNPAR;
-  newtio.c_oflag = 0;
+  bzero(&(*appLayer).newtio, sizeof((*appLayer).newtio));
+  (*appLayer).newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+  (*appLayer).newtio.c_iflag = IGNPAR;
+  (*appLayer).newtio.c_oflag = 0;
 
   /* set input mode (non-canonical, no echo,...) */
-  newtio.c_lflag = 0;
+  (*appLayer).newtio.c_lflag = 0;
 
-  newtio.c_cc[VTIME]    = 0;   /* inter-character used */
-  newtio.c_cc[VMIN]     = 0;   /* blocking read until n chars received */
+  (*appLayer).newtio.c_cc[VTIME]    = 0;   /* inter-character used */
+  (*appLayer).newtio.c_cc[VMIN]     = 0;   /* blocking read until n chars received */
 
 /*
   VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
   leitura do(s) proximo(s) caracter(es)
 */
 
-  tcflush(fd, TCIOFLUSH);
+  tcflush((*appLayer).fd, TCIOFLUSH);
 
-  if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
+  if ( tcsetattr((*appLayer).fd,TCSANOW,&(*appLayer).newtio) == -1) {
     perror("tcsetattr");
-    exit(-1);
+    return -1;
   }
 
   printf("New termios structure set\n");
 
-  i=0;
   while(conta < 4 && STOP == FALSE){
       if(flag){
           alarm(3);                 // activa alarme de 3s
           flag=0;
 
-          if ((res = write(fd,set,5)) == -1) {
+          if ((res = write((*appLayer).fd,set,5)) == -1) {
               printf("An error has occured writing the message.\n");
-              exit(-1);
+              return -1;
           }
 
-          printf("%d bytes written\n", res);
+          printf("SET sent, %d bytes written.\n", res);
       }
 
-      res = read(fd, &buf[i], 1);
-
-
-      if (res < 0) {
-          printf("There was an error while reading the buffer.\n");
-          exit(-1);
-      }
-      else if (res == 0) {
-          continue;
-      }
-      else {
-          switch (i) {
-            case START:
-                if (buf[i] == ua[0])
-                    i++;
-                break;
-            case FLAG_RCV:
-                if (buf[i] == ua[1])
-                    i++;
-                else if (buf[i] != ua[0])
-                    i=0;
-                break;
-            case A_RCV:
-                if (buf[i] == ua[2])
-                    i++;
-                else if (buf[i] == ua[0])
-                    i = 1;
-                else
-                    i=0;
-                break;
-            case C_RCV:
-                if (buf[i] == ua[3])
-                    i++;
-                else if (buf[i] == ua[0])
-                    i = 1;
-                else
-                    i=0;
-                break;
-            case BCC_OK:
-                if (buf[i] == ua[4])
-                    STOP = TRUE;
-                else
-                    i=0;
-                break;
-            default:
-                printf("There was an error or the message is not valid.\n");
-                exit(-1);
-                break;
-          }
-      }
+      if ((ret = stateMachineSupervision((*appLayer).fd, &i, ua)) == -1)
+          return -1;
   }
 
-  if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
-    perror("tcsetattr");
-    exit(-1);
-  }
-
-  close(fd);
+  printf("UA received.\n");
+  alarm(0);
 
   return 0;
 }
 
 int llread() {
-
+    return 0;
 }
 
 int llwrite() {
-
+    return 0;
 }
 
-int llclose() {
+int llclose(ApplicationLayer *appLayer) {
+  conta = 1;
+  flag = 1;
+  STOP = FALSE;
+  int i = 0, res, ret;
 
+  while(conta < 4 && STOP == FALSE){
+      if(flag){
+          alarm(3);                 // activa alarme de 3s
+          flag=0;
+
+          if ((res = write((*appLayer).fd,disc,5)) == -1) {
+              printf("An error has occured writing the message.\n");
+              return -1;
+          }
+
+          printf("DISC sent, %d bytes written.\n", res);
+      }
+
+      if ((ret = stateMachineSupervision((*appLayer).fd, &i, disc)) == -1)
+          return -1;
+  }
+
+  printf("DISC received.\n");
+  alarm(0);
+
+  if ((res = write((*appLayer).fd,ua,5)) == -1) {
+      printf("An error has occured writing the message.\n");
+      return -1;
+  }
+
+  printf("UA sent, %d bytes written.\n", res);
+
+  if (tcsetattr((*appLayer).fd,TCSANOW,&(*appLayer).oldtio) == -1) {
+    perror("tcsetattr");
+    return -1;
+  }
+
+  close((*appLayer).fd);
+
+  return 0;
+}
+
+int stateMachineSupervision(int port, int *state, unsigned char *frame) {
+    int res;
+    unsigned char buf;
+
+    res = read(port, &buf, 1);
+
+    if (res < 0) {
+        printf("There was an error while reading the buffer.\n");
+        return -1;
+    }
+    else if (res == 0) {
+        return 0;
+    }
+    else {
+        switch (*state) {
+          case START:
+              if (buf == frame[0])
+                  *state = FLAG_RCV;
+              break;
+          case FLAG_RCV:
+              if (buf == frame[1])
+                  *state = A_RCV;
+              else if (buf != frame[0])
+                  *state = START;
+              break;
+          case A_RCV:
+              if (buf == frame[2])
+                  *state = C_RCV;
+              else if (buf == frame[0])
+                  *state = FLAG_RCV;
+              else
+                  *state = START;
+              break;
+          case C_RCV:
+              if (buf == frame[3])
+                  *state = BCC_OK;
+              else if (buf == frame[0])
+                  *state = FLAG_RCV;
+              else
+                  *state = START;
+              break;
+          case BCC_OK:
+              if (buf == frame[4])
+                  STOP = TRUE;
+              else
+                  *state = START;
+              break;
+          default:
+              printf("There was an error or the message is not valid.\n");
+              return -1;
+              break;
+        }
+    }
+
+    return 0;
 }
