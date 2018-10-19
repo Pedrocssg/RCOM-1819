@@ -1,6 +1,6 @@
 /*Non-Canonical Input Processing*/
 
-#include "macros.h"
+#include "noncanonical.h"
 
 unsigned char set[5] = {FLAG,A,SET_C,SET_BCC,FLAG};
 unsigned char ua[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
@@ -84,33 +84,37 @@ int main(int argc, char** argv)
             continue;
         else {
             switch (i) {
-              case 0:
-                  if (buf[i] == set[i])
+              case START:
+                  if (buf[i] == set[0])
                     i++;
                   break;
-              case 1:
-                  if (buf[i] == set[i])
+              case FLAG_RCV:
+                  if (buf[i] == set[1])
                       i++;
-                  else
-                      i--;
+                  else if (buf[i] != set[0])
+                      i = 0;
                   break;
-              case 2:
-                  if (buf[i] == set[i])
+              case A_RCV:
+                  if (buf[i] == set[2])
                       i++;
+                  else if (buf[i] == set[0])
+                      i = 1;
                   else
-                      i--;
+                      i = 0;
                   break;
-              case 3:
-                  if (buf[i] == set[i])
+              case C_RCV:
+                  if (buf[i] == set[3])
                       i++;
+                  else if (buf[i] == set[0])
+                      i = 1;
                   else
-                      i--;
+                      i = 0;
                   break;
-              case 4:
-                  if (buf[i] == set[i])
+              case BCC_OK:
+                  if (buf[i] == set[4])
                       STOP = TRUE;
                   else
-                      i--;
+                      i = 0;
                   break;
               default:
                   printf("There was an error or the message is not valid.\n");
