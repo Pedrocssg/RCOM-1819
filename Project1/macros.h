@@ -4,9 +4,16 @@
 #define FALSE 0
 #define TRUE 1
 
+#define START 0
+#define FLAG_RCV 1
+#define A_RCV 2
+#define C_RCV 3
+#define BCC_OK 4
+
 #define FLAG 0x7E
 #define A 0x03
 #define UA_C 0x07
 #define SET_C 0x03
+#define DISC_C 0x0B
 #define SET_BCC (A^SET_C)
 #define UA_BCC (A^UA_C)

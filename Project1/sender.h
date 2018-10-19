@@ -7,8 +7,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include "macros.h"
 
-int llopen();
+typedef struct {
+  int fd;
+  struct termios oldtio, newtio;
+} ApplicationLayer;
+
+int llopen(ApplicationLayer *appLayer);
+int stateMachineSupervision(int port, int *state, unsigned char *frame);
 int llread();
 int llwrite();
-int llclose();
+int llclose(ApplicationLayer *appLayer);
