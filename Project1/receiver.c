@@ -16,6 +16,7 @@ int main(int argc, char const *argv[]) {
   }
 
     int fd;
+    char buf[255];
 
     ApplicationLayer appLayer;
     
@@ -31,7 +32,7 @@ int main(int argc, char const *argv[]) {
     if(llopen(&appLayer) == -1)
         return -1;
 
-    if(llread(&appLayer) == -1)
+    if(llread(appLayer.fd, &buf) == -1)
         return -1;
 
     if(llclose(&appLayer) == -1)
@@ -97,58 +98,78 @@ int llopen(ApplicationLayer *appLayer) {
   return 0;
 }
 
+int controlField = I0_C;
+
 int llread(int port, char *buf){
     int res;
-    unsigned char buf;
+    int state = 0;
+    int counter
+    STOP = FALSE;
     
-    res = read(port, &buf, 1);
-    if (res < 0) {
-        printf("There was an error while reading the buffer.\n");
-        return -1;
-    }
-    else if (res == 0) {
-        return 0;
-    }
-    else {
-        switch (*state) {
+    while(STOP == FALSE) {
+        switch (state) {
             case START:
-                if (buf == frame[0])
-                    *state = FLAG_RCV;
+                if (buf[0] == FLAG)
+                    state = FLAG_RCV;
                 break;
             case FLAG_RCV:
-                if (buf == frame[1])
-                *state = A_RCV;
-                else if (buf != frame[0])
-                    *state=START;
+                if (buf[1] == A)
+                state = A_RCV;
+                else if (buf[1] != FLAG)
+                    state=START;
                 break;
             case A_RCV:
-                if (buf == frame[2])
-                    *state = C_RCV;
-                else if (buf == frame[0])
-                    *state = FLAG_RCV;
+                if (buf[2] == controlField){
+                    controlField = controlField ^ I1_C;
+                    state = C_RCV;
+                }
+                else if (buf[2] == controlField ^ I1_C)
+                    return; // QUANDO ESTA A RECEBER UMA TRAMA REPETIDA
                 else
-                    *state=START;
+                    state=START;
                 break;
             case C_RCV:
-                if (buf == frame[3])
-                    *state = BCC_OK;
-                else if (buf == frame[0])
-                    *state = FLAG_RCV;
+                if (buf[3] == A^controlField)
+                    state = BCC_OK;
+                else if (buf[3] == FLAG)
+                    state = FLAG_RCV;
                 else
-                    *state=START;
+                    state=START;
                 break;
             case BCC_OK:
-                if (buf == frame[4])
+                counter = 4;
+
+                if (buf[counter] == 0){  // DATA
+
+                    state = DATA_OK;
+                }
+                else if (buf[counter] == 1){  // START
+                
+                    state = DATA_OK;
+                }
+                else if (buf[counter] == 2){  // END
+
+                    state = DATA_OK;
+                }
+                else if (buf[counter] == FLAG)
+                    state = FLAG_RCV;
+                else
+                    state=START;
+                break;
+            case DATA_OK:
+                if (buf[counter] == FLAG)
                     STOP = TRUE;
                 else
-                    *state=START;
+                    state=START;
                 break;
             default:
                 printf("There was an error or the message is not valid.\n");
                 return -1;
                 break;
-        }
     }
+    }
+    
+    
 
     return 0;
 }
