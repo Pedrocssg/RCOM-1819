@@ -12,8 +12,13 @@
 
 #define FLAG 0x7E
 #define A 0x03
+#define A_ALT 0x01
 #define UA_C 0x07
 #define SET_C 0x03
+#define RR_C_N0 0x05
+#define RR_C_N1 0x85
+#define REJ_C_N0 0x01
+#define REJ_C_N1 0x81
 #define DISC_C 0x0B
 #define SET_BCC (A^SET_C)
 #define UA_BCC (A^UA_C)

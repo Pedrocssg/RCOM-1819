@@ -15,7 +15,6 @@ typedef struct {
 } ApplicationLayer;
 
 int llopen(ApplicationLayer *appLayer);
-int stateMachineSupervision(int port, int *state, unsigned char *frame);
-int llread();
-int llwrite();
+int llwrite(int fd, char *buf, int length);
 int llclose(ApplicationLayer *appLayer);
+int stateMachineSupervision(int port, int *state, unsigned char *frame);

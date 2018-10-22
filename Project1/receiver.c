@@ -1,8 +1,13 @@
 #include "receiver.h"
 
+// Sender frames
 unsigned char set[5] = {FLAG,A,SET_C,SET_BCC,FLAG};
-unsigned char ua[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
-unsigned char disc[5] = {FLAG,A,DISC_C,SET_BCC,FLAG};
+unsigned char ua_em[5] = {FLAG,A_ALT,UA_C,UA_BCC,FLAG};
+unsigned char disc_em[5] = {FLAG,A,DISC_C,SET_BCC,FLAG};
+
+// Receiver frames
+unsigned char disc_rec[5] = {FLAG,A_ALT,DISC_C,SET_BCC,FLAG};
+unsigned char ua_rec[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
 
 int main(int argc, char const *argv[]) {
   if ( (argc < 2) || ((strcmp("/dev/ttyS0", argv[1])!=0) && (strcmp("/dev/ttyS1", argv[1])!=0) )) {
@@ -26,12 +31,16 @@ int main(int argc, char const *argv[]) {
     if(llopen(&appLayer) == -1)
         return -1;
 
+    if(llread(&appLayer) == -1)
+        return -1;
+
     if(llclose(&appLayer) == -1)
         return -1;
 
 
   return 0;
 }
+
 
 int llopen(ApplicationLayer *appLayer) {
 
@@ -77,7 +86,7 @@ int llopen(ApplicationLayer *appLayer) {
 
     printf("SET received\n");
 
-    if ((res = write((*appLayer).fd,ua,5)) == -1) {
+    if ((res = write((*appLayer).fd,ua_rec,5)) == -1) {
         printf("An error has occured.\n");
         return -1;
     }
@@ -88,6 +97,62 @@ int llopen(ApplicationLayer *appLayer) {
   return 0;
 }
 
+int llread(int port, char *buf){
+    int res;
+    unsigned char buf;
+    
+    res = read(port, &buf, 1);
+    if (res < 0) {
+        printf("There was an error while reading the buffer.\n");
+        return -1;
+    }
+    else if (res == 0) {
+        return 0;
+    }
+    else {
+        switch (*state) {
+            case START:
+                if (buf == frame[0])
+                    *state = FLAG_RCV;
+                break;
+            case FLAG_RCV:
+                if (buf == frame[1])
+                *state = A_RCV;
+                else if (buf != frame[0])
+                    *state=START;
+                break;
+            case A_RCV:
+                if (buf == frame[2])
+                    *state = C_RCV;
+                else if (buf == frame[0])
+                    *state = FLAG_RCV;
+                else
+                    *state=START;
+                break;
+            case C_RCV:
+                if (buf == frame[3])
+                    *state = BCC_OK;
+                else if (buf == frame[0])
+                    *state = FLAG_RCV;
+                else
+                    *state=START;
+                break;
+            case BCC_OK:
+                if (buf == frame[4])
+                    STOP = TRUE;
+                else
+                    *state=START;
+                break;
+            default:
+                printf("There was an error or the message is not valid.\n");
+                return -1;
+                break;
+        }
+    }
+
+    return 0;
+}
+
 int llclose(ApplicationLayer *appLayer) {
     
     int res, ret, i = 0;
@@ -95,13 +160,13 @@ int llclose(ApplicationLayer *appLayer) {
 
     while (STOP == FALSE) {
 
-        if((ret = stateMachineSupervision((*appLayer).fd,&i,disc)) == -1)
+        if((ret = stateMachineSupervision((*appLayer).fd,&i,disc_em)) == -1)
         return -1;
     }
 
     printf("DISC received\n");
 
-    if ((res = write((*appLayer).fd,disc,5)) == -1) {
+    if ((res = write((*appLayer).fd,disc_rec,5)) == -1) {
         printf("An error has occured.\n");
         return -1;
     }
@@ -110,7 +175,7 @@ int llclose(ApplicationLayer *appLayer) {
 
     while (STOP == FALSE) {
 
-    if((ret = stateMachineSupervision((*appLayer).fd,&i,ua)) == -1)
+    if((ret = stateMachineSupervision((*appLayer).fd,&i,ua_em)) == -1)
     return -1;
     }
     

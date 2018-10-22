@@ -1,8 +1,15 @@
 #include "sender.h"
 
+// Sender frames
 unsigned char set[5] = {FLAG,A,SET_C,SET_BCC,FLAG};
-unsigned char ua[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
-unsigned char disc[5] = {FLAG,A,DISC_C,SET_BCC,FLAG};
+unsigned char ua_em[5] = {FLAG,A_ALT,UA_C,UA_BCC,FLAG};
+unsigned char disc_em[5] = {FLAG,A,DISC_C,SET_BCC,FLAG};
+
+// Receiver frames
+unsigned char ua_rec[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
+unsigned char disc_rec[5] = {FLAG,A_ALT,DISC_C,SET_BCC,FLAG};
+unsigned char rr[5] = {FLAG,A,RR_C,SET_BCC,FLAG};
+
 volatile int STOP=FALSE;
 int flag=1, conta=1;
 
@@ -92,7 +99,7 @@ int llopen(ApplicationLayer *appLayer) {
           printf("SET sent, %d bytes written.\n", res);
       }
 
-      if ((ret = stateMachineSupervision((*appLayer).fd, &i, ua)) == -1)
+      if ((ret = stateMachineSupervision((*appLayer).fd, &i, ua_rec)) == -1)
           return -1;
   }
 
@@ -102,11 +109,29 @@ int llopen(ApplicationLayer *appLayer) {
   return 0;
 }
 
-int llread() {
-    return 0;
-}
+int llwrite(int fd, char *buf, int length) {
+  conta = 1;
+  flag = 1;
+  STOP = FALSE;
+  int i = 0, res, ret;
 
-int llwrite() {
+  while(conta < 4 && STOP == FALSE){
+      if(flag){
+          alarm(3);                 // activa alarme de 3s
+          flag=0;
+
+          if ((res = write(fd,buf,strlen(buf))) == -1) {
+              printf("An error has occured writing the message.\n");
+              return -1;
+          }
+
+          printf("Info sent, %d bytes written.\n", res);
+      }
+
+      if ((ret = stateMachineSupervision(fd, &i, RR_C_N0)) == -1)
+          return -1;
+  }
+
     return 0;
 }
 
@@ -121,7 +146,7 @@ int llclose(ApplicationLayer *appLayer) {
           alarm(3);                 // activa alarme de 3s
           flag=0;
 
-          if ((res = write((*appLayer).fd,disc,5)) == -1) {
+          if ((res = write((*appLayer).fd,disc_em,5)) == -1) {
               printf("An error has occured writing the message.\n");
               return -1;
           }
@@ -129,14 +154,14 @@ int llclose(ApplicationLayer *appLayer) {
           printf("DISC sent, %d bytes written.\n", res);
       }
 
-      if ((ret = stateMachineSupervision((*appLayer).fd, &i, disc)) == -1)
+      if ((ret = stateMachineSupervision((*appLayer).fd, &i, disc_rec)) == -1)
           return -1;
   }
 
   printf("DISC received.\n");
   alarm(0);
 
-  if ((res = write((*appLayer).fd,ua,5)) == -1) {
+  if ((res = write((*appLayer).fd,ua_em,5)) == -1) {
       printf("An error has occured writing the message.\n");
       return -1;
   }
