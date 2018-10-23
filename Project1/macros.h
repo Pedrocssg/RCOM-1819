@@ -15,6 +15,7 @@
 #define FLAG 0x7E
 #define A 0x03
 #define A_ALT 0x01
+
 #define UA_C 0x07
 #define SET_C 0x03
 #define RR_C_N0 0x05
@@ -23,10 +24,18 @@
 #define REJ_C_N1 0x81
 #define I0_C 0x00
 #define I1_C 0x40
+#define DISC_C 0x0B
+
+#define SET_BCC (A^SET_C)
+#define UA_BCC_REC (A^UA_C)
+#define UA_BCC_EM (A_ALT^UA_C)
+#define DISC_BCC_REC (A_ALT^DISC_C)
+#define DISC_BCC_EM (A^DISC_C)
+#define RR0_BCC (A^RR_C_N0)
+#define RR1_BCC (A^RR_C_N1)
+
 #define START_FRAME 0x01
+#define INFO_FRAME 0x00
 #define END_FRAME 0x02
 #define T1 0x00
 #define T2 0x01
-#define DISC_C 0x0B
-#define SET_BCC (A^SET_C)
-#define UA_BCC (A^UA_C)

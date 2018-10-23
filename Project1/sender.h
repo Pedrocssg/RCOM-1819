@@ -11,11 +11,13 @@
 #include "macros.h"
 
 typedef struct {
-  int fd;
-  struct termios oldtio, newtio;
+    int fd;
+    struct termios oldtio, newtio;
 } ApplicationLayer;
 
 int llopen(ApplicationLayer *appLayer);
-int llwrite(int fd, char *buf, int length);
+int createStartFrame(unsigned char *start, long fileSize, const char *fileName);
+int llwrite(int fd, unsigned char *buf, int length);
+void createEndFrame(unsigned char *end, unsigned char *start, int frameSize);
 int llclose(ApplicationLayer *appLayer);
 int stateMachineSupervision(int port, int *state, unsigned char *frame);
