@@ -17,6 +17,6 @@ typedef struct{
 
 volatile int STOP=FALSE;
 int llopen(ApplicationLayer *appLayer);
-int llread(int port, char *buf);
+int llread(int port, unsigned char *data);
 int llclose(ApplicationLayer *appLayer);
 int stateMachineSupervision(int port, int *state, unsigned char *frame);
