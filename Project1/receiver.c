@@ -2,12 +2,14 @@
 
 // Sender frames
 unsigned char set[5] = {FLAG,A,SET_C,SET_BCC,FLAG};
-unsigned char ua_em[5] = {FLAG,A_ALT,UA_C,UA_BCC,FLAG};
-unsigned char disc_em[5] = {FLAG,A,DISC_C,SET_BCC,FLAG};
+unsigned char ua_em[5] = {FLAG,A_ALT,UA_C,UA_BCC_EM,FLAG};
+unsigned char disc_em[5] = {FLAG,A,DISC_C,DISC_BCC_EM,FLAG};
 
 // Receiver frames
-unsigned char disc_rec[5] = {FLAG,A_ALT,DISC_C,SET_BCC,FLAG};
-unsigned char ua_rec[5] = {FLAG,A,UA_C,UA_BCC,FLAG};
+unsigned char ua_rec[5] = {FLAG,A,UA_C,UA_BCC_REC,FLAG};
+unsigned char disc_rec[5] = {FLAG,A_ALT,DISC_C,DISC_BCC_REC ,FLAG};
+unsigned char rr0[5] = {FLAG,A,RR_C_N0,RR0_BCC,FLAG};
+unsigned char rr1[5] = {FLAG,A,RR_C_N1,RR1_BCC,FLAG};
 
 int main(int argc, char const *argv[]) {
   if ( (argc < 2) || ((strcmp("/dev/ttyS0", argv[1])!=0) && (strcmp("/dev/ttyS1", argv[1])!=0) )) {
@@ -15,7 +17,6 @@ int main(int argc, char const *argv[]) {
     exit(1);
   }
 
-    int fd;
     char buf[255];
 
     ApplicationLayer appLayer;
@@ -32,8 +33,11 @@ int main(int argc, char const *argv[]) {
     if(llopen(&appLayer) == -1)
         return -1;
 
-    if(llread(appLayer.fd, &buf) == -1)
+    if(llread(appLayer.fd, buf) == -1)
         return -1;
+
+    if(llread(appLayer.fd, buf) == -1)
+    return -1;
 
     if(llclose(&appLayer) == -1)
         return -1;
@@ -98,12 +102,12 @@ int llopen(ApplicationLayer *appLayer) {
   return 0;
 }
 
-int controlField = I0_C;
+unsigned char controlField = I0_C;
 
 int llread(int port, char *buf){
     int res;
     int state = 0;
-    int counter
+    int counter;
     STOP = FALSE;
     
     while(STOP == FALSE) {
@@ -123,13 +127,13 @@ int llread(int port, char *buf){
                     controlField = controlField ^ I1_C;
                     state = C_RCV;
                 }
-                else if (buf[2] == controlField ^ I1_C)
-                    return; // QUANDO ESTA A RECEBER UMA TRAMA REPETIDA
+                else if (buf[2] == (controlField ^ I1_C))
+                    return 1; // QUANDO ESTA A RECEBER UMA TRAMA REPETIDA, ENVIAR RR
                 else
                     state=START;
                 break;
             case C_RCV:
-                if (buf[3] == A^controlField)
+                if (buf[3] == (A^controlField))
                     state = BCC_OK;
                 else if (buf[3] == FLAG)
                     state = FLAG_RCV;
@@ -137,21 +141,92 @@ int llread(int port, char *buf){
                     state=START;
                 break;
             case BCC_OK:
-                counter = 4;
 
-                if (buf[counter] == 0){  // DATA
-
-                    state = DATA_OK;
-                }
-                else if (buf[counter] == 1){  // START
-                
-                    state = DATA_OK;
-                }
-                else if (buf[counter] == 2){  // END
+                if (buf[4] == INFO_FRAME){  // DATA
 
                     state = DATA_OK;
                 }
-                else if (buf[counter] == FLAG)
+                else if (buf[4] == START_FRAME){  // START
+
+                    unsigned char type1 = buf[5];
+                    unsigned char length1 =  buf[6];
+                    unsigned char type2 = buf[7+length1];
+                    unsigned char length2 =  buf[8+length1];
+                    unsigned char bcc =  buf[9+length1+length2];
+                    int bccIndex = 9+length1+length2;
+
+                    if(type1 != T1) {
+                        if(type1 == FLAG)
+                            state = FLAG_RCV;
+                        else
+                            state = START;
+                        
+                        break;
+                    }
+
+                    if(length1 == FLAG) {
+                        length1 = FLAG_RCV;
+                        break;
+                    }
+
+                    length1 = (int)length1;
+
+                    int counterv1 = 0;
+                    unsigned char filesize[length1];
+                    while(length1 > 0){
+                        //if(buf[6+counterv1] == FLAG)
+                          // FAZER BREAK DUAS VEZES
+
+                        filesize[counterv1] = buf[6+counterv1];
+                        counterv1++;
+                        length1--;
+                    }
+
+                    if(type2 != T2) {
+                        if(type2 == FLAG)
+                            state = FLAG_RCV;
+                        else
+                            state = START;
+                        break;
+                    }
+
+                    if(length2 == FLAG) {
+                        length2 = FLAG_RCV;
+                        break;
+                    }
+
+                    int length = (int)length2;
+
+                    int counterv2 = 0;
+                    unsigned char filename[length];
+                    while(length > 0){
+                        //if(buf[9+counterv2+length] == FLAG)
+                          // FAZER BREAK DUAS VEZES
+
+                        filename[counterv2] = buf[9+counterv2+length];
+                        counterv2++;
+                        length--;
+                    }
+
+                    unsigned char bccFinal = START_FRAME;
+
+                    int j = 5;
+                    for(j = 5; j <= bccIndex; j++){
+                        bccFinal = bccFinal^filename[j];
+                    }
+
+
+
+
+            
+                    counter = bccIndex + 1;
+                    state = DATA_OK;
+                }
+                else if (buf[4] == END_FRAME){  // END
+
+                    state = DATA_OK;
+                }
+                else if (buf[4] == FLAG)
                     state = FLAG_RCV;
                 else
                     state=START;
@@ -166,8 +241,22 @@ int llread(int port, char *buf){
                 printf("There was an error or the message is not valid.\n");
                 return -1;
                 break;
+        }
     }
+
+    unsigned char * receiverReady;
+
+    if(controlField == I0_C)
+        receiverReady = rr0;
+    else if(controlField == I1_C)
+        receiverReady = rr1;
+
+    if((res = write(port,receiverReady,1)) == -1) {
+        printf("An error has occured.\n");
+        return -1;
     }
+
+    printf("Receiver ready sent, %d bytes written\n", res);
     
     
 
