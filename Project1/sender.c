@@ -57,14 +57,14 @@ int main(int argc, char const *argv[]) {
         return -1;
     }
 
-    unsigned char start[255];
-    int frameSize = createStartFrame(start, fileSize, fileName);
-    llwrite(appLayer.fd, start, frameSize);
+    unsigned char boundFrame[255];
+    int frameSize = createStartFrame(boundFrame, fileSize, fileName);
+    llwrite(appLayer.fd, boundFrame, frameSize);
 
 
-    unsigned char end[255];
-    createEndFrame(end, start, frameSize);
-    llwrite(appLayer.fd, end, frameSize);
+    boundFrame[2] = controlField;
+    boundFrame[4] = END_FRAME;
+    llwrite(appLayer.fd, boundFrame, frameSize);
 
 
     if (llclose(&appLayer) == -1) {
@@ -90,7 +90,7 @@ int llopen(ApplicationLayer *appLayer) {
     /* set input mode (non-canonical, no echo,...) */
     (*appLayer).newtio.c_lflag = 0;
 
-    (*appLayer).newtio.c_cc[VTIME]    = 0;   /* inter-character used */
+    (*appLayer).newtio.c_cc[VTIME]    = 10;   /* inter-character used */
     (*appLayer).newtio.c_cc[VMIN]     = 0;   /* blocking read until n chars received */
 
     /*
@@ -117,7 +117,7 @@ int llopen(ApplicationLayer *appLayer) {
                 return -1;
             }
 
-            printf("I sent, %d bytes written.\n", res);
+            printf("Start sent, %d bytes written.\n", res);
         }
 
         if ((ret = stateMachineSupervision((*appLayer).fd, &i, ua_rec)) == -1)
@@ -179,7 +179,7 @@ int llwrite(int fd, unsigned char *buf, int length) {
                 return -1;
             }
 
-            printf("Info sent, %d bytes written.\n", res);
+            printf("End sent, %d bytes written.\n", res);
         }
 
         if (controlField == I0_C) {
@@ -190,20 +190,11 @@ int llwrite(int fd, unsigned char *buf, int length) {
             if ((ret = stateMachineSupervision(fd, &i, rr0)) == -1)
                 return -1;
         }
-        
+
         controlField = controlField^I1_C;
     }
 
     return 0;
-}
-
-void createEndFrame(unsigned char *end, unsigned char *start, int frameSize) {
-    for (size_t i = 0; i < frameSize; i++) {
-        end[i] = start[i];
-    }
-
-    end[2] = controlField;
-    end[4] = END_FRAME;
 }
 
 int llclose(ApplicationLayer *appLayer) {
