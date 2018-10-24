@@ -59,7 +59,12 @@ int main(int argc, char const *argv[]) {
 
     unsigned char boundFrame[255];
     int frameSize = createStartFrame(boundFrame, fileSize, fileName);
+    for (size_t i = 0; i < frameSize; i++) {
+        printf("%x\n", boundFrame[i]);
+    }
     llwrite(appLayer.fd, boundFrame, frameSize);
+
+
 
 
     boundFrame[2] = controlField;
@@ -154,7 +159,7 @@ int createStartFrame(unsigned char *start, long fileSize, const char *fileName) 
     unsigned char bccFinal = START_FRAME;
 
     for (size_t i = 5; i <= currentPosition; i++) {
-        bccFinal = bccFinal^start[i];
+        bccFinal ^= start[i];
     }
 
     start[++currentPosition] = bccFinal;
@@ -191,7 +196,7 @@ int llwrite(int fd, unsigned char *buf, int length) {
                 return -1;
         }
 
-        controlField = controlField^I1_C;
+        controlField ^= I1_C;
     }
 
     return 0;

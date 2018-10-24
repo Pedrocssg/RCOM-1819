@@ -1,6 +1,7 @@
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
+
 #define FALSE 0
 #define TRUE 1
 #define LONG_SIZE 4
@@ -13,6 +14,7 @@
 #define DATA_OK 5
 
 #define FLAG 0x7E
+
 #define A 0x03
 #define A_ALT 0x01
 
