@@ -19,5 +19,8 @@ volatile int STOP=FALSE;
 int llopen(ApplicationLayer *appLayer);
 int llread(int port, unsigned char *data);
 int llclose(ApplicationLayer *appLayer);
+int processInfo(unsigned char * data);
 int processBounds(int port, unsigned char * data, unsigned char c);
+int getFileName(unsigned char * data, char * fileName);
+int getFileSize(unsigned char * data, int * fileSize);
 int stateMachineSupervision(int port, int *state, unsigned char *frame);

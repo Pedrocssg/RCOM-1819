@@ -11,14 +11,18 @@ unsigned char disc_rec[5] = {FLAG,A_ALT,DISC_C,DISC_BCC_REC ,FLAG};
 unsigned char rr0[5] = {FLAG,A,RR_C_N0,RR0_BCC,FLAG};
 unsigned char rr1[5] = {FLAG,A,RR_C_N1,RR1_BCC,FLAG};
 
+unsigned char controlField = I0_C;
+
 int main(int argc, char const *argv[]) {
   if ( (argc < 2) || ((strcmp("/dev/ttyS0", argv[1])!=0) && (strcmp("/dev/ttyS1", argv[1])!=0) )) {
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS0\n");
     exit(1);
   }
 
-    char buf[255];
-    unsigned char * filedata;
+    unsigned char * filedata = (unsigned char *) malloc(0);
+
+    int fileSize;
+    char * fileName = (char *) malloc(0);
 
     ApplicationLayer appLayer;
 
@@ -38,15 +42,26 @@ int main(int argc, char const *argv[]) {
     if((size = llread(appLayer.fd, filedata))== -1)
         return -1;
 
-    printf("size:%d\n",size);
+    printf("start size:%d\n",size);
 
+    getFileName(filedata, fileName);
 
-        int i;
+    getFileSize(filedata, &fileSize);
+
+    printf("%s\n", fileName);
+    printf("%d\n", fileSize);
+
+    int i;
     for(i = 0; i < size - 1; i++)
-      printf("file[%s]: %x",i, &filedata[i]);
+      printf("start[%d]: %x\n",i, filedata[i]);
 
     if(llread(appLayer.fd, filedata) == -1)
-    return -1;
+        return -1;
+
+    printf("end size:%d\n",size);
+
+    for(i = 0; i < size - 1; i++)
+      printf("end[%d]: %x\n",i, filedata[i]);
 
     if(llclose(&appLayer) == -1)
         return -1;
@@ -73,7 +88,7 @@ int llopen(ApplicationLayer *appLayer) {
     /* set input mode (non-canonical, no echo,...) */
     (*appLayer).newtio.c_lflag = 0;
 
-    (*appLayer).newtio.c_cc[VTIME]    = 0;   /* inter-character timer unused */
+    (*appLayer).newtio.c_cc[VTIME]    = 1;   /* inter-character timer unused */
     (*appLayer).newtio.c_cc[VMIN]     = 0;   /* blocking read until 5 chars received */
 
 
@@ -111,47 +126,52 @@ int llopen(ApplicationLayer *appLayer) {
   return 0;
 }
 
-unsigned char controlField = I0_C;
 
 int llread(int port, unsigned char *data){
     int res;
     int size;
     unsigned char buf;
     int state = 0;
-    int counter;
     STOP = FALSE;
 
     while(STOP == FALSE) {
 
         res = read(port, &buf, 1);
+        printf("%x\n", buf);
         if (res < 0) {
             printf("There was an error while reading the buffer.\n");
             return -1;
         }
         else if (res == 0) {
-            return 0;
+            continue;
         }
         else{
             switch (state) {
               case START:
                   if (buf == FLAG)
                       state = FLAG_RCV;
+
                   break;
               case FLAG_RCV:
                   if (buf == A)
-                  state = A_RCV;
+                      state = A_RCV;
                   else if (buf != FLAG)
                       state=START;
+
+                  printf("FLAG\n");
                   break;
               case A_RCV:
+                  printf("CONTROL:%x\n",controlField);
+                  printf("BUF:%x\n",buf);
                   if (buf == controlField){
-                      controlField = controlField ^ I1_C;
                       state = C_RCV;
                   }
                   else if (buf == (controlField ^ I1_C))
                       return 1; // QUANDO ESTA A RECEBER UMA TRAMA REPETIDA, ENVIAR RR
                   else
                       state=START;
+
+                  printf("A\n");
                   break;
               case C_RCV:
                   if (buf == (A^controlField))
@@ -160,6 +180,8 @@ int llread(int port, unsigned char *data){
                       state = FLAG_RCV;
                   else
                       state=START;
+
+                  printf("C\n");
                   break;
               case BCC_OK:
                   if (buf == INFO_FRAME){
@@ -168,7 +190,7 @@ int llread(int port, unsigned char *data){
                   }
                   else if (buf == START_FRAME || buf == END_FRAME){
                     if((size = processBounds(port, data, buf)) >= 0)
-                      return size;
+                      STOP = TRUE;
                     else
                       return -1;
                   }
@@ -176,6 +198,8 @@ int llread(int port, unsigned char *data){
                       state = FLAG_RCV;
                   else
                       state=START;
+
+                  printf("BCC_OK\n");
                   break;
               default:
                   printf("There was an error or the message is not valid.\n");
@@ -186,13 +210,14 @@ int llread(int port, unsigned char *data){
     }
 
     unsigned char * receiverReady;
+    controlField = controlField ^ I1_C;
 
     if(controlField == I0_C)
         receiverReady = rr0;
     else if(controlField == I1_C)
         receiverReady = rr1;
 
-    if((res = write(port,receiverReady,1)) == -1) {
+    if((res = write(port,receiverReady,5)) == -1) {
         printf("An error has occured.\n");
         return -1;
     }
@@ -201,19 +226,21 @@ int llread(int port, unsigned char *data){
 
 
 
-    return 0;
+    return size;
 }
 
 int processInfo(unsigned char * data){
-
+  return 0;
 }
 
 int processBounds(int port, unsigned char * data, unsigned char c){
   int res, size = 0;
   unsigned char buf;
   unsigned char bccFinal = c;
-  data = (unsigned char *) malloc(1);
+  data = (unsigned char *) realloc(data, 1);
   data[size++] = c;
+
+  printf("teste\n");
 
   while(TRUE){
     res = read(port, &buf, 1);
@@ -230,16 +257,46 @@ int processBounds(int port, unsigned char * data, unsigned char c){
         if(bccFinal == 0){
           return size;
         }
-        else
+        else{
+          printf("BCC wrong\n");
           return -1;
+        }
       }
       else{
         bccFinal ^= buf;
+
         data = (unsigned char *)realloc(data, ++size);
         data[size-1] = buf;
       }
     }
   }
+}
+
+int getFileName(unsigned char * data, char * fileName) {
+
+    int lengthSize = (int) data[2];
+    int lengthName = (int) data[4+lengthSize];
+    int i;
+
+
+    for (i = 0; i < lengthName; i++)
+        fileName[i] = data[5 + lengthSize + i];
+
+    return 0;
+}
+
+int getFileSize(unsigned char * data, int * fileSize) {
+
+  int length = (int) data[2];
+  int i;
+  *fileSize = 0;
+
+  for (i = 0; i < length; i++){
+      *fileSize += data[3+i] << (8*(length-(i+1)));
+  }
+
+  return 0;
+
 }
 
 int llclose(ApplicationLayer *appLayer) {
