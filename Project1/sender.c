@@ -41,6 +41,8 @@ int main(int argc, char const *argv[]) {
     fseek(file, 0L, SEEK_END);
     long fileSize = ftell(file);
 
+    fclose(file);
+
     printf("size: %ld\n", fileSize);
 
     /*
@@ -58,17 +60,25 @@ int main(int argc, char const *argv[]) {
     }
 
     unsigned char boundFrame[255];
-    int frameSize = createStartFrame(boundFrame, fileSize, fileName);
-    for (size_t i = 0; i < frameSize; i++) {
-        printf("%x\n", boundFrame[i]);
-    }
+    int frameSize = createBoundFrame(boundFrame, fileSize, fileName, START_FRAME);
     llwrite(appLayer.fd, boundFrame, frameSize);
 
+    if ((file = fopen(fileName, "r")) == NULL) {
+        printf("Program ended with error n. %d\n", errno);
+        return -1;
+    }
+
+    int messageSize;
+    unsigned char message[MAX_MSG_SIZE];
+    unsigned char infoFrame[MAX_FRAME_SIZE];
+    do {
+        messageSize = fread(message, sizeof(char), MAX_MSG_SIZE, file);
+        frameSize = createInfoFrame(message, messageSize, infoFrame);
+        llwrite(appLayer.fd, infoFrame, frameSize);
+    } while (messageSize != MAX_MSG_SIZE);
 
 
-
-    boundFrame[2] = controlField;
-    boundFrame[4] = END_FRAME;
+    frameSize = createBoundFrame(boundFrame, fileSize, fileName, END_FRAME);
     llwrite(appLayer.fd, boundFrame, frameSize);
 
 
@@ -95,7 +105,7 @@ int llopen(ApplicationLayer *appLayer) {
     /* set input mode (non-canonical, no echo,...) */
     (*appLayer).newtio.c_lflag = 0;
 
-    (*appLayer).newtio.c_cc[VTIME]    = 10;   /* inter-character used */
+    (*appLayer).newtio.c_cc[VTIME]    = 1;   /* inter-character used */
     (*appLayer).newtio.c_cc[VMIN]     = 0;   /* blocking read until n chars received */
 
     /*
@@ -129,43 +139,55 @@ int llopen(ApplicationLayer *appLayer) {
             return -1;
     }
 
-    printf("UA received.\n");
+    if (conta != 4) {
+        printf("UA received.\n");
+    }
     alarm(0);
 
     return 0;
 }
 
-int createStartFrame(unsigned char *start, long fileSize, const char *fileName) {
-    start[0] = FLAG;
-    start[1] = A;
-    start[2] = I0_C;
-    start[3] = A^I0_C;
-    start[4] = START_FRAME;
+int createBoundFrame(unsigned char *bound, long fileSize, const char *fileName, unsigned char frame) {
+    bound[0] = FLAG;
+    bound[1] = A;
+    bound[2] = controlField;
+    bound[3] = A^controlField;
+    bound[4] = frame;
 
-    start[5] = T1;
-    start[6] = LONG_SIZE;
-    start[7] = (fileSize >> 24) & 0xFF;
-    start[8] = (fileSize >> 16) & 0xFF;
-    start[9] = (fileSize >> 8) & 0xFF;
-    start[10] = fileSize & 0xFF;
+    bound[5] = T1;
+    bound[6] = LONG_SIZE;
+    bound[7] = (fileSize >> 24) & 0xFF;
+    bound[8] = (fileSize >> 16) & 0xFF;
+    bound[9] = (fileSize >> 8) & 0xFF;
+    bound[10] = fileSize & 0xFF;
 
-    start[11] = T2;
-    start[12] = strlen(fileName);
+    bound[11] = T2;
+    bound[12] = strlen(fileName);
     int currentPosition = 12;
     for (size_t i = 0; i < strlen(fileName); i++) {
-        start[++currentPosition] = fileName[i];
+        bound[++currentPosition] = fileName[i];
     }
 
-    unsigned char bccFinal = START_FRAME;
+    unsigned char bccFinal = frame;
 
     for (size_t i = 5; i <= currentPosition; i++) {
-        bccFinal ^= start[i];
+        bccFinal ^= bound[i];
     }
 
-    start[++currentPosition] = bccFinal;
-    start[++currentPosition] = FLAG;
+    bound[++currentPosition] = bccFinal;
+    bound[++currentPosition] = FLAG;
 
     return (currentPosition+1);
+}
+
+int createInfoFrame(unsigned char *message, int messageSize, unsigned char *infoFrame) {
+    infoFrame[0] = FLAG;
+    infoFrame[1] = A;
+    infoFrame[2] = controlField;
+    infoFrame[3] = A^controlField;
+    infoFrame[4] = INFO_FRAME;
+
+    return 0;
 }
 
 int llwrite(int fd, unsigned char *buf, int length) {
@@ -184,20 +206,26 @@ int llwrite(int fd, unsigned char *buf, int length) {
                 return -1;
             }
 
-            printf("End sent, %d bytes written.\n", res);
+            printf("Info sent, %d bytes written.\n", res);
         }
 
         if (controlField == I0_C) {
             if ((ret = stateMachineSupervision(fd, &i, rr1)) == -1)
-                return -1;
+                exit(-1);
         }
         else {
             if ((ret = stateMachineSupervision(fd, &i, rr0)) == -1)
-                return -1;
+                exit(-1);
         }
-
-        controlField ^= I1_C;
     }
+
+    if (conta != 4) {
+        printf("Answer received\n");
+    }
+
+    alarm(0);
+
+    controlField ^= I1_C;
 
     return 0;
 }

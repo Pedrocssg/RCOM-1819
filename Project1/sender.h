@@ -16,7 +16,8 @@ typedef struct {
 } ApplicationLayer;
 
 int llopen(ApplicationLayer *appLayer);
-int createStartFrame(unsigned char *start, long fileSize, const char *fileName);
+int createBoundFrame(unsigned char *bound, long fileSize, const char *fileName, unsigned char frame);
+int createInfoFrame(unsigned char *message, int messageSize, unsigned char *infoFrame);
 int llwrite(int fd, unsigned char *buf, int length);
 int llclose(ApplicationLayer *appLayer);
 int stateMachineSupervision(int port, int *state, unsigned char *frame);

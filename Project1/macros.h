@@ -5,6 +5,8 @@
 #define FALSE 0
 #define TRUE 1
 #define LONG_SIZE 4
+#define MAX_MSG_SIZE 0xffff
+#define MAX_FRAME_SIZE MAX_MSG_SIZE+6
 
 #define START 0
 #define FLAG_RCV 1
@@ -36,8 +38,8 @@
 #define RR0_BCC (A^RR_C_N0)
 #define RR1_BCC (A^RR_C_N1)
 
-#define START_FRAME 0x01
-#define INFO_FRAME 0x00
-#define END_FRAME 0x02
+#define START_FRAME 0x02
+#define INFO_FRAME 0x01
+#define END_FRAME 0x03
 #define T1 0x00
 #define T2 0x01
