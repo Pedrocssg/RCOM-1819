@@ -6,7 +6,7 @@
 #define TRUE 1
 #define LONG_SIZE 4
 #define MAX_MSG_SIZE 0xffff
-#define MAX_FRAME_SIZE MAX_MSG_SIZE+6
+#define MAX_FRAME_SIZE MAX_MSG_SIZE+10
 
 #define START 0
 #define FLAG_RCV 1

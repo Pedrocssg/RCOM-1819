@@ -14,7 +14,7 @@ unsigned char rej0[5] = {FLAG, A, REJ_C_N0, REJ0_BCC, FLAG};
 unsigned char rej1[5] = {FLAG, A, REJ_C_N1, REJ1_BCC, FLAG};
 
 volatile int STOP=FALSE;
-int flag=1, conta=3;
+int flag=1, conta=1;
 unsigned char controlField = I0_C;
 int currentFrame = 1;
 
@@ -58,14 +58,15 @@ int main(int argc, char const *argv[]) {
         return -1;
     }
 
-    if (llopen(&appLayer) == -1) {
+    if (llopen(&appLayer) == -1)
         return -1;
-    }
 
     unsigned char boundFrame[255];
     int frameSize;
     frameSize = createBoundFrame(boundFrame, fileSize, fileName, START_FRAME);
-    llwrite(appLayer.fd, boundFrame, frameSize);
+
+    if (llwrite(appLayer.fd, boundFrame, frameSize) == -1)
+        return -1;
 
     if ((file = fopen(fileName, "r")) == NULL) {
         printf("Program ended with error n. %d\n", errno);
@@ -78,19 +79,21 @@ int main(int argc, char const *argv[]) {
     do {
         messageSize = fread(message, sizeof(unsigned char), MAX_MSG_SIZE, file);
         frameSize = createInfoFrame(message, messageSize, infoFrame);
-        llwrite(appLayer.fd, infoFrame, frameSize);
+
+        if (llwrite(appLayer.fd, infoFrame, frameSize) == -1)
+          return -1;
     } while (messageSize == MAX_MSG_SIZE);
     printf("saiu\n");
 
     fclose(file);
 
     frameSize = createBoundFrame(boundFrame, fileSize, fileName, END_FRAME);
-    llwrite(appLayer.fd, boundFrame, frameSize);
 
-
-    if (llclose(&appLayer) == -1) {
+    if (llwrite(appLayer.fd, boundFrame, frameSize) == -1)
         return -1;
-    }
+
+    if (llclose(&appLayer) == -1)
+        return -1;
 
     return 0;
 }
@@ -148,6 +151,11 @@ int llopen(ApplicationLayer *appLayer) {
     if (conta != 4) {
         printf("UA received.\n");
     }
+    else {
+        printf("UA not received.\n");
+        return -1;
+    }
+
     alarm(0);
 
     return 0;
@@ -193,13 +201,11 @@ int createInfoFrame(unsigned char *message, int messageSize, unsigned char *info
     infoFrame[3] = A^controlField;
     infoFrame[4] = INFO_FRAME;
 
-    unsigned char bccFinal = INFO_FRAME;
-
     infoFrame[5] = currentFrame % 255;
     infoFrame[6] = (messageSize >> 8) & 0xFF;
     infoFrame[7] = messageSize & 0xFF;
 
-    bccFinal ^= infoFrame[5]^infoFrame[6]^infoFrame[7];
+    unsigned char bccFinal = infoFrame[4]^infoFrame[5]^infoFrame[6]^infoFrame[7];
 
     int currentPosition = 8;
     for (size_t i = 0; i < messageSize; i++) {
@@ -212,12 +218,11 @@ int createInfoFrame(unsigned char *message, int messageSize, unsigned char *info
 
     currentFrame++;
 
-
     return (currentPosition+1);
 }
 
 int llwrite(int fd, unsigned char *buf, int length) {
-    conta = 3;
+    conta = 1;
     flag = 1;
     STOP = FALSE;
     int i = 0, res, ret;
@@ -245,8 +250,11 @@ int llwrite(int fd, unsigned char *buf, int length) {
         }
     }
 
-    if (conta != 4) {
+    if (conta != 4)
         printf("Answer received\n");
+    else {
+        printf("Answer not received\n");
+        return -1;
     }
 
     alarm(0);
@@ -257,7 +265,7 @@ int llwrite(int fd, unsigned char *buf, int length) {
 }
 
 int llclose(ApplicationLayer *appLayer) {
-    conta = 3;
+    conta = 1;
     flag = 1;
     STOP = FALSE;
     int i = 0, res, ret;
@@ -279,15 +287,23 @@ int llclose(ApplicationLayer *appLayer) {
             return -1;
     }
 
-    printf("DISC received.\n");
     alarm(0);
 
-    if ((res = write((*appLayer).fd,ua_em,5)) == -1) {
-        printf("An error has occured writing the message.\n");
+    if (conta != 4) {
+        printf("DISC received.\n");
+        alarm(0);
+
+        if ((res = write((*appLayer).fd,ua_em,5)) == -1) {
+            printf("An error has occured writing the message.\n");
+            return -1;
+        }
+
+        printf("UA sent, %d bytes written.\n", res);
+    }
+    else {
+        printf("DISC not received.\n");
         return -1;
     }
-
-    printf("UA sent, %d bytes written.\n", res);
 
     if (tcsetattr((*appLayer).fd,TCSANOW,&(*appLayer).oldtio) == -1) {
         perror("tcsetattr");
