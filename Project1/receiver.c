@@ -55,6 +55,16 @@ int main(int argc, char const *argv[]) {
     for(i = 0; i < size - 1; i++)
       printf("start[%d]: %x\n",i, filedata[i]);
 
+    FILE *file = fopen("pinguim.gif", "ab+");
+    int messageSize;
+    do {
+      if((messageSize = llread(appLayer.fd, filedata)) == -1)
+          return -1;
+
+    }while(messageSize < fileSize);
+
+
+
     if(llread(appLayer.fd, filedata) == -1)
         return -1;
 
