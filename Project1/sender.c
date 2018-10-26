@@ -75,10 +75,14 @@ int main(int argc, char const *argv[]) {
 
     int messageSize;
     unsigned char message[MAX_MSG_SIZE];
-    unsigned char infoFrame[MAX_FRAME_SIZE];
+    unsigned char infoFrame[MAX_FRAME_SIZE*2];
     do {
         messageSize = fread(message, sizeof(unsigned char), MAX_MSG_SIZE, file);
         frameSize = createInfoFrame(message, messageSize, infoFrame);
+
+        for (size_t i = 0; i < frameSize; i++) {
+            printf("%x\n", infoFrame[i]);
+        }
 
         if (llwrite(appLayer.fd, infoFrame, frameSize) == -1)
           return -1;
@@ -141,7 +145,7 @@ int llopen(ApplicationLayer *appLayer) {
                 return -1;
             }
 
-            printf("Start sent, %d bytes written.\n", res);
+            printf("Set sent, %d bytes written.\n", res);
         }
 
         if ((ret = stateMachineSupervision((*appLayer).fd, &i, ua_rec)) == -1)
@@ -191,7 +195,9 @@ int createBoundFrame(unsigned char *bound, long fileSize, const char *fileName, 
     bound[++currentPosition] = bccFinal;
     bound[++currentPosition] = FLAG;
 
-    return (currentPosition+1);
+    int frameSize = byteStuffing(bound, (currentPosition+1));
+
+    return frameSize;
 }
 
 int createInfoFrame(unsigned char *message, int messageSize, unsigned char *infoFrame) {
@@ -218,7 +224,43 @@ int createInfoFrame(unsigned char *message, int messageSize, unsigned char *info
 
     currentFrame++;
 
-    return (currentPosition+1);
+    int frameSize = byteStuffing(infoFrame, (currentPosition+1));
+
+    return frameSize;
+}
+
+int byteStuffing(unsigned char* frame, int frameSize) {
+    unsigned char tempFrame[frameSize*2];
+    int newSize = frameSize;
+
+    tempFrame[0] = FLAG;
+
+    size_t j = 1;
+    for (size_t i = 1; i < frameSize-1; i++) {
+        if (frame[i] == FLAG) {
+            tempFrame[j] = ESC;
+            tempFrame[++j] = FLAG^0x20;
+            newSize++;
+        }
+        else if (frame[i] == ESC) {
+            tempFrame[j] = ESC;
+            tempFrame[++j] = ESC^0x20;
+            newSize++;
+        }
+        else {
+            tempFrame[j] = frame[i];
+        }
+
+        j++;
+    }
+
+    tempFrame[newSize-1] = FLAG;
+
+    for (size_t i = 0; i < newSize; i++) {
+        frame[i] = tempFrame[i];
+    }
+
+    return newSize;
 }
 
 int llwrite(int fd, unsigned char *buf, int length) {
@@ -358,6 +400,67 @@ int stateMachineSupervision(int port, int *state, unsigned char *frame) {
               break;
           case BCC_OK:
               if (buf == frame[4])
+                  STOP = TRUE;
+              else
+                  *state = START;
+              break;
+          default:
+              printf("There was an error or the message is not valid.\n");
+              return -1;
+              break;
+        }
+    }
+
+    return 0;
+}
+
+int stateMachineInfoAnswer(int port, int *state) {
+    int res;
+    unsigned char buf;
+
+    res = read(port, &buf, 1);
+
+    if (res < 0) {
+        printf("There was an error while reading the buffer.\n");
+        return -1;
+    }
+    else if (res == 0) {
+        return 0;
+    }
+    else {
+        switch (*state) {
+          case START:
+              if (buf == FLAG)
+                  *state = FLAG_RCV;
+              break;
+          case FLAG_RCV:
+              if (buf == A)
+                  *state = A_RCV;
+              else if (buf != frame[0])
+                  *state = START;
+              break;
+          case A_RCV:
+              if (buf == FLAG) {
+                  *state = FLAG_RCV;
+                  break;
+              }
+              else if (buf == RR_C_N0 || buf == RR_C_N1) {
+                  *state = C_RCV;
+              }
+              else if (buf == REJ_C_N0 || buf == REJ_C_N1) {
+                  *state = START;
+              }
+              break;
+          case C_RCV:
+              if (buf == frame[3])
+                  *state = BCC_OK;
+              else if (buf == FLAG)
+                  *state = FLAG_RCV;
+              else
+                  *state = START;
+              break;
+          case BCC_OK:
+              if (buf == FLAG)
                   STOP = TRUE;
               else
                   *state = START;

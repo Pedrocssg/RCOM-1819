@@ -5,8 +5,10 @@
 #define FALSE 0
 #define TRUE 1
 #define LONG_SIZE 4
-#define MAX_MSG_SIZE 0xffff
-#define MAX_FRAME_SIZE MAX_MSG_SIZE+10
+#define MAX_MSG_SIZE 0x00ff
+#define MAX_INFO_SIZE MAX_MSG_SIZE+4
+#define MAX_FRAME_SIZE MAX_INFO_SIZE+6
+#define ESC 0x7d
 
 #define START 0
 #define FLAG_RCV 1
@@ -15,7 +17,7 @@
 #define BCC_OK 4
 #define DATA_OK 5
 
-#define FLAG 0x7E
+#define FLAG 0x7e
 
 #define A 0x03
 #define A_ALT 0x01
@@ -28,7 +30,7 @@
 #define REJ_C_N1 0x81
 #define I0_C 0x00
 #define I1_C 0x40
-#define DISC_C 0x0B
+#define DISC_C 0x0b
 
 #define SET_BCC (A^SET_C)
 #define UA_BCC_REC (A^UA_C)
