@@ -37,6 +37,8 @@
 #define DISC_BCC_EM (A^DISC_C)
 #define RR0_BCC (A^RR_C_N0)
 #define RR1_BCC (A^RR_C_N1)
+#define REJ0_BCC (A^REJ_C_N0)
+#define REJ1_BCC (A^REJ_C_N1)
 
 #define START_FRAME 0x02
 #define INFO_FRAME 0x01

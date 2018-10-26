@@ -10,10 +10,13 @@ unsigned char ua_rec[5] = {FLAG, A, UA_C, UA_BCC_REC, FLAG};
 unsigned char disc_rec[5] = {FLAG, A_ALT, DISC_C, DISC_BCC_REC, FLAG};
 unsigned char rr0[5] = {FLAG, A, RR_C_N0, RR0_BCC, FLAG};
 unsigned char rr1[5] = {FLAG, A, RR_C_N1, RR1_BCC, FLAG};
+unsigned char rej0[5] = {FLAG, A, REJ_C_N0, REJ0_BCC, FLAG};
+unsigned char rej1[5] = {FLAG, A, REJ_C_N1, REJ1_BCC, FLAG};
 
 volatile int STOP=FALSE;
-int flag=1, conta=1;
+int flag=1, conta=3;
 unsigned char controlField = I0_C;
+int currentFrame = 1;
 
 void atende() {                  // atende alarme
     printf("alarme # %d\n", conta);
@@ -60,7 +63,8 @@ int main(int argc, char const *argv[]) {
     }
 
     unsigned char boundFrame[255];
-    int frameSize = createBoundFrame(boundFrame, fileSize, fileName, START_FRAME);
+    int frameSize;
+    frameSize = createBoundFrame(boundFrame, fileSize, fileName, START_FRAME);
     llwrite(appLayer.fd, boundFrame, frameSize);
 
     if ((file = fopen(fileName, "r")) == NULL) {
@@ -72,11 +76,13 @@ int main(int argc, char const *argv[]) {
     unsigned char message[MAX_MSG_SIZE];
     unsigned char infoFrame[MAX_FRAME_SIZE];
     do {
-        messageSize = fread(message, sizeof(char), MAX_MSG_SIZE, file);
+        messageSize = fread(message, sizeof(unsigned char), MAX_MSG_SIZE, file);
         frameSize = createInfoFrame(message, messageSize, infoFrame);
         llwrite(appLayer.fd, infoFrame, frameSize);
-    } while (messageSize != MAX_MSG_SIZE);
+    } while (messageSize == MAX_MSG_SIZE);
+    printf("saiu\n");
 
+    fclose(file);
 
     frameSize = createBoundFrame(boundFrame, fileSize, fileName, END_FRAME);
     llwrite(appLayer.fd, boundFrame, frameSize);
@@ -187,11 +193,31 @@ int createInfoFrame(unsigned char *message, int messageSize, unsigned char *info
     infoFrame[3] = A^controlField;
     infoFrame[4] = INFO_FRAME;
 
-    return 0;
+    unsigned char bccFinal = INFO_FRAME;
+
+    infoFrame[5] = currentFrame % 255;
+    infoFrame[6] = (messageSize >> 8) & 0xFF;
+    infoFrame[7] = messageSize & 0xFF;
+
+    bccFinal ^= infoFrame[5]^infoFrame[6]^infoFrame[7];
+
+    int currentPosition = 8;
+    for (size_t i = 0; i < messageSize; i++) {
+        infoFrame[currentPosition++] = message[i];
+        bccFinal ^= message[i];
+    }
+
+    infoFrame[currentPosition++] = bccFinal;
+    infoFrame[currentPosition] = FLAG;
+
+    currentFrame++;
+
+
+    return (currentPosition+1);
 }
 
 int llwrite(int fd, unsigned char *buf, int length) {
-    conta = 1;
+    conta = 3;
     flag = 1;
     STOP = FALSE;
     int i = 0, res, ret;
@@ -231,7 +257,7 @@ int llwrite(int fd, unsigned char *buf, int length) {
 }
 
 int llclose(ApplicationLayer *appLayer) {
-    conta = 1;
+    conta = 3;
     flag = 1;
     STOP = FALSE;
     int i = 0, res, ret;
