@@ -13,6 +13,8 @@ unsigned char rr1[5] = {FLAG,A,RR_C_N1,RR1_BCC,FLAG};
 
 unsigned char controlField = I0_C;
 
+int stopData = FALSE;
+
 int main(int argc, char const *argv[]) {
   if ( (argc < 2) || ((strcmp("/dev/ttyS0", argv[1])!=0) && (strcmp("/dev/ttyS1", argv[1])!=0) )) {
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS0\n");
@@ -61,14 +63,13 @@ int main(int argc, char const *argv[]) {
       if((messageSize = llread(appLayer.fd, filedata)) == -1)
           return -1;
 
-    }while(messageSize < fileSize);
+      if(!stopData)
+          writeFileData(filedata, file);
+
+    }while(!stopData);
 
 
-
-    if(llread(appLayer.fd, filedata) == -1)
-        return -1;
-
-    printf("end size:%d\n",size);
+    printf("end size:%d\n",messageSize);
 
     for(i = 0; i < size - 1; i++)
       printf("end[%d]: %x\n",i, filedata[i]);
@@ -147,7 +148,7 @@ int llread(int port, unsigned char *data){
     while(STOP == FALSE) {
 
         res = read(port, &buf, 1);
-        printf("%x\n", buf);
+        //printf("%x\n", buf);
         if (res < 0) {
             printf("There was an error while reading the buffer.\n");
             return -1;
@@ -168,11 +169,8 @@ int llread(int port, unsigned char *data){
                   else if (buf != FLAG)
                       state=START;
 
-                  printf("FLAG\n");
                   break;
               case A_RCV:
-                  printf("CONTROL:%x\n",controlField);
-                  printf("BUF:%x\n",buf);
                   if (buf == controlField){
                       state = C_RCV;
                   }
@@ -181,7 +179,6 @@ int llread(int port, unsigned char *data){
                   else
                       state=START;
 
-                  printf("A\n");
                   break;
               case C_RCV:
                   if (buf == (A^controlField))
@@ -191,16 +188,18 @@ int llread(int port, unsigned char *data){
                   else
                       state=START;
 
-                  printf("C\n");
                   break;
               case BCC_OK:
-                  if (buf == INFO_FRAME){
-                    processInfo(data);
-                    state = DATA_OK;
-                  }
-                  else if (buf == START_FRAME || buf == END_FRAME){
-                    if((size = processBounds(port, data, buf)) >= 0)
-                      STOP = TRUE;
+                  if (buf == START_FRAME || buf == END_FRAME){
+                    if((size = processBoundFrame(port, data, buf)) >= 0) {
+                        STOP = TRUE;
+                        if(buf == END_FRAME)
+                          stopData = TRUE;
+                    }
+                    else if (buf == INFO_FRAME){
+                      if((size = processInfoFrame(port, data, buf)) >= 0)
+                          STOP = TRUE;
+                    }
                     else
                       return -1;
                   }
@@ -239,18 +238,12 @@ int llread(int port, unsigned char *data){
     return size;
 }
 
-int processInfo(unsigned char * data){
-  return 0;
-}
-
-int processBounds(int port, unsigned char * data, unsigned char c){
+int processBoundFrame(int port, unsigned char * data, unsigned char c){
   int res, size = 0;
   unsigned char buf;
   unsigned char bccFinal = c;
   data = (unsigned char *) realloc(data, 1);
   data[size++] = c;
-
-  printf("teste\n");
 
   while(TRUE){
     res = read(port, &buf, 1);
@@ -269,12 +262,58 @@ int processBounds(int port, unsigned char * data, unsigned char c){
         }
         else{
           printf("BCC wrong\n");
+          printf("%d\n",size);
           return -1;
         }
       }
       else{
         bccFinal ^= buf;
+        data = (unsigned char *)realloc(data, ++size);
+        data[size-1] = buf;
+      }
+    }
+  }
+}
 
+int processInfoFrame(int port, unsigned char * data, unsigned char c){
+  int res, size = 0;
+  unsigned char buf;
+  unsigned char bccFinal = c;
+  data = (unsigned char *) realloc(data, 1);
+  data[size++] = c;
+
+  int l2, l1, k;
+
+  while(TRUE){
+    res = read(port, &buf, 1);
+    if (res < 0) {
+        printf("There was an error while reading the buffer.\n");
+        return -1;
+    }
+    else if (res == 0) {
+        return 0;
+    }
+    else
+    {
+      if(size == 2)
+        l2 = (int) buf;
+      else if(size == 3){
+        l1 = (int) buf;
+        k = 256*l2 + l1;
+      }
+
+      if((buf == FLAG) && (size == 5 + k)){
+        if(bccFinal == 0){
+          return size;
+        }
+        else{
+          printf("BCC wrong\n");
+          printf("%d\n",size);
+          return -1;
+        }
+      }
+      else{
+        bccFinal ^= buf;
         data = (unsigned char *)realloc(data, ++size);
         data[size-1] = buf;
       }
@@ -307,6 +346,21 @@ int getFileSize(unsigned char * data, int * fileSize) {
 
   return 0;
 
+}
+
+int writeFileData(unsigned char * data, FILE * fd) {
+
+    int l1 = (int) data[3];
+    int l2 = (int) data[2];
+    int k = 256*l2 + l1;
+    int i;
+
+    for(i = 0; i < k; i++) {
+        if((fwrite(&data[4+i], sizeof(unsigned char), 1, fd)) == 0)
+            return -1;
+    }
+
+    return 0;
 }
 
 int llclose(ApplicationLayer *appLayer) {
