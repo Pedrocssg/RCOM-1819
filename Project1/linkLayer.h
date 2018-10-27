@@ -17,4 +17,17 @@ typedef struct {
     unsigned int timeout;
     unsigned int numTansmissions;
     char frame[MAX_FRAME_SIZE];
-} LinkLayer
+} LinkLayer;
+
+int llopen(int port, int status);
+
+int createBoundFrame(unsigned char *bound, long fileSize, const char *fileName, unsigned char frame);
+int createInfoFrame(unsigned char *message, int messageSize, unsigned char *infoFrame);
+int byteStuffing(unsigned char* frame, int frameSize);
+
+int llwrite(int port, unsigned char *buf, int length);
+int stateMachineInfoAnswer(int port, int *state);
+
+int llclose(int port);
+
+int stateMachineSupervision(int port, int *state, unsigned char *frame);

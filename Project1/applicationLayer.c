@@ -1,12 +1,23 @@
 #include "applicationLayer.h"
 
 int main(int argc, char const *argv[]) {
-    if ( (argc < 4) || ((strcmp("/dev/ttyS0", argv[1])!=0) && (strcmp("/dev/ttyS1", argv[1])!=0) )) {
+    if ((strcmp("/dev/ttyS0", argv[1])!=0) && (strcmp("/dev/ttyS1", argv[1])!=0)) {
         printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS0\n");
         exit(1);
     }
 
     ApplicationLayer appLayer;
+
+    if (argc == 2) {
+        appLayer.status = RECEIVER;
+    }
+    else if (argc == 3) {
+        appLayer.status = TRANSMITTER;
+    }
+    else {
+        printf("Number of arguments insufficient\n");
+        exit(-1);
+    }
 
     signal(SIGALRM, atende);
 
