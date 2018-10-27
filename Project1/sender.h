@@ -22,3 +22,4 @@ int byteStuffing(unsigned char* frame, int frameSize);
 int llwrite(int fd, unsigned char *buf, int length);
 int llclose(ApplicationLayer *appLayer);
 int stateMachineSupervision(int port, int *state, unsigned char *frame);
+int stateMachineInfoAnswer(int port, int *state);

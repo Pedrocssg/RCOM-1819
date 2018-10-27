@@ -35,16 +35,15 @@ int main(int argc, char const *argv[]) {
     (void) signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
 
     const char *fileName = argv[2];
-    FILE *file;
-    if ((file = fopen(fileName, "r")) == NULL) {
+    int file;
+    if ((file = open(fileName, O_RDONLY)) == -1) {
         printf("Program ended with error n. %d\n", errno);
         return -1;
     }
 
-    fseek(file, 0L, SEEK_END);
-    long fileSize = ftell(file);
+    long fileSize = lseek(file, (size_t)0, SEEK_END);
 
-    fclose(file);
+    close(file);
 
     printf("size: %ld\n", fileSize);
 
@@ -68,7 +67,7 @@ int main(int argc, char const *argv[]) {
     if (llwrite(appLayer.fd, boundFrame, frameSize) == -1)
         return -1;
 
-    if ((file = fopen(fileName, "r")) == NULL) {
+    if ((file = open(fileName, O_RDONLY)) == -1) {
         printf("Program ended with error n. %d\n", errno);
         return -1;
     }
@@ -77,19 +76,14 @@ int main(int argc, char const *argv[]) {
     unsigned char message[MAX_MSG_SIZE];
     unsigned char infoFrame[MAX_FRAME_SIZE*2];
     do {
-        messageSize = fread(message, sizeof(unsigned char), MAX_MSG_SIZE, file);
+        messageSize = read(file, message, MAX_MSG_SIZE);
         frameSize = createInfoFrame(message, messageSize, infoFrame);
 
-        for (size_t i = 0; i < frameSize; i++) {
-            printf("%x\n", infoFrame[i]);
-        }
-
         if (llwrite(appLayer.fd, infoFrame, frameSize) == -1)
-          return -1;
+            return -1;
     } while (messageSize == MAX_MSG_SIZE);
-    printf("saiu\n");
 
-    fclose(file);
+    close(file);
 
     frameSize = createBoundFrame(boundFrame, fileSize, fileName, END_FRAME);
 
@@ -282,14 +276,8 @@ int llwrite(int fd, unsigned char *buf, int length) {
             printf("Info sent, %d bytes written.\n", res);
         }
 
-        if (controlField == I0_C) {
-            if ((ret = stateMachineSupervision(fd, &i, rr1)) == -1)
-                exit(-1);
-        }
-        else {
-            if ((ret = stateMachineSupervision(fd, &i, rr0)) == -1)
-                exit(-1);
-        }
+        if ((ret = stateMachineInfoAnswer(fd, &i)) == -1)
+            exit(-1);
     }
 
     if (conta != 4)
@@ -417,6 +405,7 @@ int stateMachineSupervision(int port, int *state, unsigned char *frame) {
 int stateMachineInfoAnswer(int port, int *state) {
     int res;
     unsigned char buf;
+    static int c;
 
     res = read(port, &buf, 1);
 
@@ -436,7 +425,7 @@ int stateMachineInfoAnswer(int port, int *state) {
           case FLAG_RCV:
               if (buf == A)
                   *state = A_RCV;
-              else if (buf != frame[0])
+              else if (buf != FLAG)
                   *state = START;
               break;
           case A_RCV:
@@ -444,23 +433,33 @@ int stateMachineInfoAnswer(int port, int *state) {
                   *state = FLAG_RCV;
                   break;
               }
-              else if (buf == RR_C_N0 || buf == RR_C_N1) {
+              else if ((controlField == I1_C && buf == RR_C_N0) || (controlField == I0_C && buf == RR_C_N1)) {
                   *state = C_RCV;
+                  c = buf;
               }
-              else if (buf == REJ_C_N0 || buf == REJ_C_N1) {
+              else if ((controlField == I1_C && buf == REJ0_BCC) || (controlField == I0_C && buf == REJ1_BCC)) {
+                  *state = C_RCV;
+                  c = buf;
+              }
+              else
                   *state = START;
-              }
               break;
           case C_RCV:
-              if (buf == frame[3])
-                  *state = BCC_OK;
-              else if (buf == FLAG)
+              if (buf == FLAG)
                   *state = FLAG_RCV;
+              else if (buf == RR0_BCC && (A^c) == RR0_BCC)
+                  *state = BCC_OK;
+              else if (buf == RR1_BCC && (A^c) == RR1_BCC)
+                  *state = BCC_OK;
+              else if (buf == REJ0_BCC && (A^c) == REJ0_BCC)
+                  *state = BCC_OK;
+              else if (buf == REJ1_BCC && (A^c) == REJ1_BCC)
+                  *state = BCC_OK;
               else
                   *state = START;
               break;
           case BCC_OK:
-              if (buf == FLAG)
+              if (buf == FLAG && (c == RR_C_N0 || c == RR_C_N1))
                   STOP = TRUE;
               else
                   *state = START;
