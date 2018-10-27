@@ -23,5 +23,5 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c);
 int processBoundFrame(int port, unsigned char * data, unsigned char c);
 int getFileName(unsigned char * data, char * fileName);
 int getFileSize(unsigned char * data, int * fileSize);
-int writeFileData(unsigned char * data, FILE * fd);
+int writeFileData(unsigned char * data, int fd);
 int stateMachineSupervision(int port, int *state, unsigned char *frame);

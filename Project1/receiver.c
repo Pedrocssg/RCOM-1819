@@ -46,7 +46,7 @@ int main(int argc, char const *argv[]) {
     if((size = llread(appLayer.fd, filedata))== -1)
         return -1;
 
-    printf("start size: %d\n",size);
+    printf("Start size: %d\n",size);
 
     getFileName(filedata, fileName);
 
@@ -55,11 +55,14 @@ int main(int argc, char const *argv[]) {
     printf("File name: %s\n", fileName);
     printf("File size: %d\n", fileSize);
 
-    int i;
-    for(i = 0; i < size - 1; i++)
-      printf("start[%d]: %x\n",i, filedata[i]);
+    //FILE *file = fopen(fileName, "ab");
 
-    FILE *file = fopen("pinguim.gif", "ab+");
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+    int file;
+
+    if((file = open(fileName, O_WRONLY | O_CREAT | O_TRUNC, mode)) == -1)
+      return -1;
+
     int messageSize;
     do {
       if((messageSize = llread(appLayer.fd, filedata)) == -1)
@@ -67,14 +70,11 @@ int main(int argc, char const *argv[]) {
 
       if(!stopData)
           writeFileData(filedata, file);
-
     }while(!stopData);
 
+    close(file);
 
-    printf("end size: %d\n",messageSize);
-
-    for(i = 0; i < size - 1; i++)
-      printf("end[%d]: %x\n",i, filedata[i]);
+    printf("End size: %d\n",messageSize);
 
     if(llclose(&appLayer) == -1)
         return -1;
@@ -151,7 +151,6 @@ int llread(int port, unsigned char *data){
     while(STOP == FALSE) {
 
         res = read(port, &buf, 1);
-        //printf("%x\n", buf);
         if (res < 0) {
             printf("There was an error while reading the buffer.\n");
             return -1;
@@ -217,8 +216,6 @@ int llread(int port, unsigned char *data){
                       state = FLAG_RCV;
                   else
                       state=START;
-
-                  printf("BCC_OK\n");
                   break;
               default:
                   printf("There was an error or the message is not valid.\n");
@@ -279,7 +276,6 @@ int processBoundFrame(int port, unsigned char * data, unsigned char c){
           return size;
         }
         else{
-          printf("BCC wrong\n");
           return -2;
         }
       }
@@ -335,20 +331,16 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c){
     }
     else
     {
-    printf("INFO FRAME:%x\n", buf);
       if(buf == FLAG){
         if(bccFinal == 0){
           return size;
         }
         else{
-          printf("BCC wrong\n");
           return -2;
         }
       }
       else if(buf == ESC){
         res2 = read(port, &buf2, 1);
-
-        printf("INFO FRAME ESC:%x\n", buf2);
         if (res2 < 0) {
             printf("There was an error while reading the buffer.\n");
             return -1;
@@ -359,11 +351,11 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c){
         else{
           if(buf2 == (FLAG ^ 0x20)){
             bccFinal ^= FLAG;
-            data[size++] = buf;
+            data[size++] = FLAG;
           }
           else if(buf2 == (ESC ^ 0x20)){
             bccFinal ^= ESC;
-            data[size++] = buf;
+            data[size++] = ESC;
           }
           else{
             bccFinal ^= buf;
@@ -408,17 +400,15 @@ int getFileSize(unsigned char * data, int * fileSize) {
 
 }
 
-int writeFileData(unsigned char * data, FILE * fd) {
+int writeFileData(unsigned char * data, int fd) {
 
     int l1 = (int) data[3];
     int l2 = (int) data[2];
     int k = 256*l2 + l1;
     int i;
 
-    for(i = 0; i < k; i++) {
-        if((fwrite(&data[4+i], sizeof(unsigned char), 1, fd)) == 0)
-            return -1;
-    }
+    if((write(fd, &data[4], k)) == 0)
+        return -1;
 
     return 0;
 }
