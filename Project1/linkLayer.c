@@ -20,21 +20,19 @@ unsigned char rr1[5] = {FLAG, A, RR_C_N1, RR1_BCC, FLAG};
 unsigned char rej0[5] = {FLAG, A, REJ_C_N0, REJ0_BCC, FLAG};
 unsigned char rej1[5] = {FLAG, A, REJ_C_N1, REJ1_BCC, FLAG};
 
-void atende() {                  // atende alarme
+void atende() {
     printf("alarme # %d\n", conta);
     flag=1;
     conta++;
 }
 
 int llopen(int port, int status) {
-    int i = 0, res, ret;
-
-    if ( tcgetattr(port, oldtio) == -1) { /* save current port settings */
+    if ( tcgetattr(port, &oldtio) == -1) {
       perror("tcgetattr");
       return -1;
     }
 
-    bzero(newtio, sizeof(newtio));
+    bzero(&newtio, sizeof(newtio));
     newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
     newtio.c_iflag = IGNPAR;
     newtio.c_oflag = 0;
@@ -52,16 +50,51 @@ int llopen(int port, int status) {
 
     tcflush(port, TCIOFLUSH);
 
-    if ( tcsetattr(port, TCSANOW, newtio) == -1) {
+    if ( tcsetattr(port, TCSANOW, &newtio) == -1) {
       perror("tcsetattr");
       return -1;
     }
 
     printf("New termios structure set\n");
 
+    if (status == TRANSMITTER)
+        return llopenTransmitterHandler(port);
+    else if (status == RECEIVER)
+        return llopenReceiverHandler(port);
+
+    return 0;
+}
+
+
+int llopenReceiverHandler(int port){
+    int res, ret, i = 0;
+
+    while (STOP == FALSE) {
+         if((ret = stateMachineSupervision(port,&i,set)) == -1)
+            return -1;
+    }
+
+    printf("SET received\n");
+
+    if ((res = write(port,ua_rec,5)) == -1) {
+        printf("An error has occured.\n");
+        return -1;
+    }
+
+    printf("UA sent, %d bytes written\n", res);
+
+    return 0;
+}
+
+
+int llopenTransmitterHandler(int port){
+    int i = 0, res, ret;
+
+    signal(SIGALRM, atende);
+
     while(conta < 4 && STOP == FALSE){
         if(flag){
-            alarm(3);                 // activa alarme de 3s
+            alarm(3);
             flag=0;
 
             if ((res = write(port, set, 5)) == -1) {
@@ -132,7 +165,7 @@ int createInfoFrame(unsigned char *message, int messageSize, unsigned char *info
     infoFrame[3] = A^controlField;
     infoFrame[4] = INFO_FRAME;
 
-    infoFrame[5] = currentFrame % 255;
+    infoFrame[5] = currentFrame % BYTE_SIZE;
     infoFrame[6] = (messageSize >> 8) & 0xFF;
     infoFrame[7] = messageSize & 0xFF;
 
@@ -187,6 +220,242 @@ int byteStuffing(unsigned char* frame, int frameSize) {
     }
 
     return newSize;
+}
+
+
+int llread(int port, unsigned char *data){
+    int res;
+    int rej = FALSE;
+    int size;
+    unsigned char buf;
+    int state = 0;
+    int stopData = FALSE;
+    STOP = FALSE;
+
+    while(STOP == FALSE) {
+
+        res = read(port, &buf, 1);
+        if (res < 0) {
+            printf("There was an error while reading the buffer.\n");
+            return -1;
+        }
+        else if (res == 0) {
+            continue;
+        }
+        else{
+            switch (state) {
+              case START:
+                  if (buf == FLAG)
+                      state = FLAG_RCV;
+
+                  break;
+              case FLAG_RCV:
+                  if (buf == A)
+                      state = A_RCV;
+                  else if (buf != FLAG)
+                      state=START;
+
+                  break;
+              case A_RCV:
+                  if (buf == controlField){
+                      state = C_RCV;
+                  }
+                  else if (buf == (controlField ^ I1_C))
+                      STOP = TRUE;
+                  else
+                      state = START;
+
+                  break;
+              case C_RCV:
+                  if (buf == (A^controlField))
+                      state = BCC_OK;
+                  else if (buf == FLAG)
+                      state = FLAG_RCV;
+                  else
+                      state=START;
+
+                  break;
+              case BCC_OK:
+                  if (buf == START_FRAME || buf == END_FRAME){
+                    size = processBoundFrame(port, data, buf);
+                    if(size >= 0) {
+                        STOP = TRUE;
+                        if(buf == END_FRAME)
+                          stopData = TRUE;
+                    }
+                    else if(size == -2){
+                        rej = TRUE;
+                        STOP = TRUE;
+                    }
+                    else
+                      return -1;
+                  }
+                  else if (buf == INFO_FRAME){
+                    if((size = processInfoFrame(port, data, buf)) >= 0)
+                        STOP = TRUE;
+                    else
+                        return -1;
+                  }
+                  else if (buf == FLAG)
+                      state = FLAG_RCV;
+                  else
+                      state=START;
+                  break;
+              default:
+                  printf("There was an error or the message is not valid.\n");
+                  return -1;
+                  break;
+            }
+        }
+    }
+
+    unsigned char * answer;
+
+    controlField = controlField ^ I1_C;
+    if(rej == TRUE){
+        if(controlField == I0_C)
+            answer = rej0;
+        else if(controlField == I1_C)
+            answer = rej1;
+    }
+    else{
+        if(controlField == I0_C)
+            answer = rr0;
+        else if(controlField == I1_C)
+            answer = rr1;
+    }
+
+    if((res = write(port,answer,5)) == -1) {
+        printf("An error has occured.\n");
+        return -1;
+    }
+
+    printf("Receiver ready sent, %d bytes written\n", res);
+
+    if (stopData == TRUE)
+        return -2;
+    else
+        return size;
+}
+
+int processBoundFrame(int port, unsigned char * data, unsigned char c){
+  int res, res2, size = 0;
+  unsigned char buf;
+  unsigned char buf2;
+  unsigned char bccFinal = c;
+  data[size++] = c;
+
+  while(TRUE){
+    res = read(port, &buf, 1);
+    if (res < 0) {
+        printf("There was an error while reading the buffer.\n");
+        return -1;
+    }
+    else if (res == 0) {
+        return 0;
+    }
+    else
+    {
+      if(buf == FLAG){
+        if(bccFinal == 0){
+          return size;
+        }
+        else{
+          return -2;
+        }
+      }
+      else if(buf == ESC){
+        res2 = read(port, &buf2, 1);
+        if (res2 < 0) {
+            printf("There was an error while reading the buffer.\n");
+            return -1;
+        }
+        else if (res2 == 0) {
+            return 0;
+        }
+        else{
+          if(buf2 == (FLAG ^ 0x20)){
+            bccFinal ^= FLAG;
+            data[size++] = buf;
+          }
+          else if(buf2 == (ESC ^ 0x20)){
+            bccFinal ^= ESC;
+            data[size++] = buf;
+          }
+          else{
+            bccFinal ^= buf;
+            data[size++] = buf;
+            bccFinal ^= buf2;
+            data[size++] = buf2;
+          }
+        }
+      }
+      else{
+        bccFinal ^= buf;
+        data[size++] = buf;
+      }
+    }
+  }
+}
+
+int processInfoFrame(int port, unsigned char * data, unsigned char c){
+  int res, res2, size = 0;
+  unsigned char buf;
+  unsigned char buf2;
+  unsigned char bccFinal = c;
+  data[size++] = c;
+
+  while(TRUE){
+    res = read(port, &buf, 1);
+    if (res < 0) {
+        printf("There was an error while reading the buffer.\n");
+        return -1;
+    }
+    else if (res == 0) {
+        return 0;
+    }
+    else
+    {
+      if(buf == FLAG){
+        if(bccFinal == 0){
+          return size;
+        }
+        else{
+          return -2;
+        }
+      }
+      else if(buf == ESC){
+        res2 = read(port, &buf2, 1);
+        if (res2 < 0) {
+            printf("There was an error while reading the buffer.\n");
+            return -1;
+        }
+        else if (res2 == 0) {
+            return 0;
+        }
+        else{
+          if(buf2 == (FLAG ^ 0x20)){
+            bccFinal ^= FLAG;
+            data[size++] = FLAG;
+          }
+          else if(buf2 == (ESC ^ 0x20)){
+            bccFinal ^= ESC;
+            data[size++] = ESC;
+          }
+          else{
+            bccFinal ^= buf;
+            data[size++] = buf;
+            bccFinal ^= buf2;
+            data[size++] = buf2;
+          }
+        }
+      }
+      else{
+        bccFinal ^= buf;
+        data[size++] = buf;
+      }
+    }
+  }
 }
 
 
@@ -341,7 +610,7 @@ int llclose(int port) {
         return -1;
     }
 
-    if (tcsetattr(port, TCSANOW, oldtio) == -1) {
+    if (tcsetattr(port, TCSANOW, &oldtio) == -1) {
         perror("tcsetattr");
         return -1;
     }

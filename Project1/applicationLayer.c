@@ -19,9 +19,112 @@ int main(int argc, char const *argv[]) {
         exit(-1);
     }
 
-    signal(SIGALRM, atende);
+    if ((appLayer.fd = open(argv[1], O_RDWR | O_NOCTTY)) < 0) {
+        perror(argv[1]);
+        return -1;
+    }
 
-    const char *fileName = argv[2];
+    if (llopen(appLayer.fd, appLayer.status) == -1)
+        return -1;
+
+    if (appLayer.status == TRANSMITTER){
+        if (transmitter(appLayer.fd, argv[2]) == -1)
+            return -1;
+    }
+    else if (appLayer.status == RECEIVER) {
+        if (receiver(appLayer.fd) == -1)
+            return -1;
+    }
+
+    if (llclose(appLayer.fd) == -1)
+        return -1;
+
+    return 0;
+}
+
+
+int receiver(int port) {
+    unsigned char filedata[MAX_INFO_SIZE*2];
+
+    int fileSize;
+    char fileName[BYTE_SIZE*2];
+
+    int size;
+    if((size = llread(port, filedata)) == -1)
+        return -1;
+
+    printf("Start size: %d\n",size);
+
+    getFileName(filedata, fileName);
+
+    getFileSize(filedata, &fileSize);
+
+    printf("File name: %s\n", fileName);
+    printf("File size: %d\n", fileSize);
+
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+    int flags = O_WRONLY | O_CREAT | O_TRUNC;
+    int file;
+    if((file = open(fileName, flags, mode)) == -1)
+        return -1;
+
+    int messageSize;
+    do {
+        if((messageSize = llread(port, filedata)) == -1)
+            return -1;
+
+        if(messageSize != -2)
+            writeFileData(filedata, file);
+    }while(messageSize != -2);
+
+    close(file);
+
+    printf("End size: %d\n",messageSize);
+
+    return 0;
+}
+
+int getFileName(unsigned char * data, char * fileName) {
+
+    int lengthSize = (int) data[2];
+    int lengthName = (int) data[4+lengthSize];
+    int i;
+
+
+    for (i = 0; i < lengthName; i++)
+        fileName[i] = data[5 + lengthSize + i];
+
+    return 0;
+}
+
+int getFileSize(unsigned char * data, int * fileSize) {
+
+  int length = (int) data[2];
+  int i;
+  *fileSize = 0;
+
+  for (i = 0; i < length; i++){
+      *fileSize += data[3+i] << (8*(length-(i+1)));
+  }
+
+  return 0;
+
+}
+
+int writeFileData(unsigned char * data, int fd) {
+
+    int l1 = (int) data[3];
+    int l2 = (int) data[2];
+    int k = 256*l2 + l1;
+
+    if((write(fd, &data[4], k)) == 0)
+        return -1;
+
+    return 0;
+}
+
+
+int transmitter(int port, const char *fileName) {
     int file;
     if ((file = open(fileName, O_RDONLY)) == -1) {
         printf("Program ended with error n. %d\n", errno);
@@ -32,19 +135,11 @@ int main(int argc, char const *argv[]) {
 
     close(file);
 
-    if ((appLayer.fd = open(argv[1], O_RDWR | O_NOCTTY)) < 0) {
-        perror(argv[1]);
-        return -1;
-    }
-
-    if (llopen(&appLayer) == -1)
-        return -1;
-
-    unsigned char boundFrame[255];
+    unsigned char boundFrame[BYTE_SIZE];
     int frameSize;
     frameSize = createBoundFrame(boundFrame, fileSize, fileName, START_FRAME);
 
-    if (llwrite(appLayer.fd, boundFrame, frameSize) == -1)
+    if (llwrite(port, boundFrame, frameSize) == -1)
         return -1;
 
     if ((file = open(fileName, O_RDONLY)) == -1) {
@@ -59,7 +154,7 @@ int main(int argc, char const *argv[]) {
         messageSize = read(file, message, MAX_MSG_SIZE);
         frameSize = createInfoFrame(message, messageSize, infoFrame);
 
-        if (llwrite(appLayer.fd, infoFrame, frameSize) == -1)
+        if (llwrite(port, infoFrame, frameSize) == -1)
             return -1;
     } while (messageSize == MAX_MSG_SIZE);
 
@@ -67,10 +162,7 @@ int main(int argc, char const *argv[]) {
 
     frameSize = createBoundFrame(boundFrame, fileSize, fileName, END_FRAME);
 
-    if (llwrite(appLayer.fd, boundFrame, frameSize) == -1)
-        return -1;
-
-    if (llclose(&appLayer) == -1)
+    if (llwrite(port, boundFrame, frameSize) == -1)
         return -1;
 
     return 0;

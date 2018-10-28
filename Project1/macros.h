@@ -7,6 +7,7 @@
 #define FALSE 0
 #define TRUE 1
 #define LONG_SIZE 4
+#define BYTE_SIZE 255
 #define MAX_MSG_SIZE 0x00ff
 #define MAX_INFO_SIZE MAX_MSG_SIZE+4
 #define MAX_FRAME_SIZE MAX_INFO_SIZE+6
