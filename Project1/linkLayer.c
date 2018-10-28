@@ -379,11 +379,11 @@ int processBoundFrame(int port, unsigned char * data, unsigned char c){
         else{
           if(buf2 == (FLAG ^ 0x20)){
             bccFinal ^= FLAG;
-            data[size++] = buf;
+            data[size++] = FLAG;
           }
           else if(buf2 == (ESC ^ 0x20)){
             bccFinal ^= ESC;
-            data[size++] = buf;
+            data[size++] = ESC;
           }
           else{
             bccFinal ^= buf;

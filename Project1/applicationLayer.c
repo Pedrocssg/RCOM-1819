@@ -55,7 +55,7 @@ int receiver(int port) {
     unsigned char filedata[MAX_INFO_SIZE*2];
 
     int fileSize;
-    char fileName[BYTE_SIZE*2];
+    char * fileName = (char *) malloc(0);
 
     int size;
     if((size = llread(port, filedata)) == -1)
@@ -65,8 +65,7 @@ int receiver(int port) {
 
     getFileSize(filedata, &fileSize);
 
-    printf("File name: %s\n", fileName);
-    printf("File size: %d\n", fileSize);
+    printf("Receiving '%s' with %d bytes\n", fileName, fileSize);
 
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
     int flags = O_WRONLY | O_CREAT | O_TRUNC;
@@ -94,9 +93,10 @@ int getFileName(unsigned char * data, char * fileName) {
     int lengthName = (int) data[4+lengthSize];
     int i;
 
+    fileName = (char *) realloc(fileName, lengthName);
 
     for (i = 0; i < lengthName; i++)
-        fileName[i] = data[5 + lengthSize + i];
+      fileName[i] = data[5 + lengthSize + i];
 
     return 0;
 }
@@ -139,7 +139,7 @@ int transmitter(int port, const char *fileName) {
 
     close(file);
 
-    unsigned char boundFrame[BYTE_SIZE];
+    unsigned char boundFrame[MAX_MSG_SIZE];
     int frameSize;
     frameSize = createBoundFrame(boundFrame, fileSize, fileName, START_FRAME);
 
