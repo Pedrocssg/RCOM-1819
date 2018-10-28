@@ -36,6 +36,7 @@ int llread(int port, unsigned char *data);
 int processInfoFrame(int port, unsigned char * data, unsigned char c);
 int processBoundFrame(int port, unsigned char * data, unsigned char c);
 
-int llclose(int port);
+int llcloseReceiver(int port);
+int llcloseTransmitter(int port);
 
 int stateMachineSupervision(int port, int *state, unsigned char *frame);

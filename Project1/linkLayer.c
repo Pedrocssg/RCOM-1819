@@ -140,13 +140,14 @@ int createBoundFrame(unsigned char *bound, long fileSize, const char *fileName, 
     bound[11] = T2;
     bound[12] = strlen(fileName);
     int currentPosition = 12;
-    for (size_t i = 0; i < strlen(fileName); i++) {
+    size_t i;
+    for (i = 0; i < strlen(fileName); i++) {
         bound[++currentPosition] = fileName[i];
     }
 
     unsigned char bccFinal = frame;
 
-    for (size_t i = 5; i <= currentPosition; i++) {
+    for (i = 5; i <= currentPosition; i++) {
         bccFinal ^= bound[i];
     }
 
@@ -172,7 +173,8 @@ int createInfoFrame(unsigned char *message, int messageSize, unsigned char *info
     unsigned char bccFinal = infoFrame[4]^infoFrame[5]^infoFrame[6]^infoFrame[7];
 
     int currentPosition = 8;
-    for (size_t i = 0; i < messageSize; i++) {
+    size_t i;
+    for (i = 0; i < messageSize; i++) {
         infoFrame[currentPosition++] = message[i];
         bccFinal ^= message[i];
     }
@@ -195,7 +197,8 @@ int byteStuffing(unsigned char* frame, int frameSize) {
     tempFrame[0] = FLAG;
 
     size_t j = 1;
-    for (size_t i = 1; i < frameSize-1; i++) {
+    size_t i;
+    for (i = 1; i < frameSize-1; i++) {
         if (frame[i] == FLAG) {
             tempFrame[j] = ESC;
             tempFrame[++j] = FLAG^0x20;
@@ -215,7 +218,7 @@ int byteStuffing(unsigned char* frame, int frameSize) {
 
     tempFrame[newSize-1] = FLAG;
 
-    for (size_t i = 0; i < newSize; i++) {
+    for (i = 0; i < newSize; i++) {
         frame[i] = tempFrame[i];
     }
 
@@ -568,8 +571,44 @@ int stateMachineInfoAnswer(int port, int *state) {
     return 0;
 }
 
+int llcloseReceiver(int port) {
+    int res, ret, i = 0;
+    STOP = FALSE;
 
-int llclose(int port) {
+    while (STOP == FALSE) {
+
+        if((ret = stateMachineSupervision(port,&i,disc_em)) == -1)
+        return -1;
+    }
+
+    printf("DISC received\n");
+
+    if ((res = write(port,disc_rec,5)) == -1) {
+        printf("An error has occured.\n");
+        return -1;
+    }
+
+    printf("DISC sent, %d bytes written\n", res);
+
+    while (STOP == FALSE) {
+
+    if((ret = stateMachineSupervision(port,&i,ua_em)) == -1)
+    return -1;
+    }
+
+    printf("UA received\n");
+
+    if(tcsetattr(port,TCSANOW,&oldtio) == -1){
+        perror("tcsetattr");
+        return -1;
+    }
+
+    close(port);
+
+    return 0;
+}
+
+int llcloseTransmitter(int port) {
     conta = 1;
     flag = 1;
     STOP = FALSE;

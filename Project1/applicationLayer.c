@@ -10,9 +10,11 @@ int main(int argc, char const *argv[]) {
 
     if (argc == 2) {
         appLayer.status = RECEIVER;
+        printf("Receiver ready.\n");
     }
     else if (argc == 3) {
         appLayer.status = TRANSMITTER;
+        printf("Transmitter ready.\n");
     }
     else {
         printf("Number of arguments insufficient\n");
@@ -36,8 +38,14 @@ int main(int argc, char const *argv[]) {
             return -1;
     }
 
-    if (llclose(appLayer.fd) == -1)
-        return -1;
+    if (appLayer.status == TRANSMITTER){
+        if (llcloseTransmitter(appLayer.fd) == -1)
+            return -1;
+    }
+    else if (appLayer.status == RECEIVER) {
+        if (llcloseReceiver(appLayer.fd) == -1)
+            return -1;
+    }
 
     return 0;
 }
@@ -52,8 +60,6 @@ int receiver(int port) {
     int size;
     if((size = llread(port, filedata)) == -1)
         return -1;
-
-    printf("Start size: %d\n",size);
 
     getFileName(filedata, fileName);
 
@@ -78,8 +84,6 @@ int receiver(int port) {
     }while(messageSize != -2);
 
     close(file);
-
-    printf("End size: %d\n",messageSize);
 
     return 0;
 }
