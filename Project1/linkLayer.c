@@ -186,10 +186,11 @@ int byteStuffing(unsigned char* frame, int frameSize) {
 int llread(int port, unsigned char *data){
     int res;
     int rej = FALSE;
-    int size;
+    int size = 0;
     unsigned char buf;
     int state = 0;
     int stopData = FALSE;
+    int repeated = FALSE;
     STOP = FALSE;
 
     while(STOP == FALSE) {
@@ -207,24 +208,24 @@ int llread(int port, unsigned char *data){
               case START:
                   if (buf == FLAG)
                       state = FLAG_RCV;
-
                   break;
               case FLAG_RCV:
                   if (buf == A)
                       state = A_RCV;
                   else if (buf != FLAG)
                       state=START;
-
                   break;
               case A_RCV:
                   if (buf == controlField){
                       state = C_RCV;
                   }
-                  else if (buf == (controlField ^ I1_C))
+                  else if (buf == (controlField ^ I1_C)) {
                       STOP = TRUE;
+                      controlField = controlField ^ I1_C;
+                      repeated = TRUE;
+                  }
                   else
                       state = START;
-
                   break;
               case C_RCV:
                   if (buf == (A^controlField))
@@ -233,7 +234,6 @@ int llread(int port, unsigned char *data){
                       state = FLAG_RCV;
                   else
                       state=START;
-
                   break;
               case BCC_OK:
                   if (buf == START_FRAME || buf == END_FRAME){
@@ -294,6 +294,8 @@ int llread(int port, unsigned char *data){
 
     if (stopData == TRUE)
         return -2;
+    else if (repeated == TRUE)
+        return -3;
     else
         return size;
 }
@@ -501,13 +503,10 @@ int stateMachineInfoAnswer(int port, int *state) {
           case C_RCV:
               if (buf == FLAG)
                   *state = FLAG_RCV;
-              else if (buf == RR0_BCC && (A^c) == RR0_BCC)
-                  *state = BCC_OK;
-              else if (buf == RR1_BCC && (A^c) == RR1_BCC)
-                  *state = BCC_OK;
-              else if (buf == REJ0_BCC && (A^c) == REJ0_BCC)
-                  *state = BCC_OK;
-              else if (buf == REJ1_BCC && (A^c) == REJ1_BCC)
+              else if ((buf == RR0_BCC && (A^c) == RR0_BCC) ||
+                       (buf == RR1_BCC && (A^c) == RR1_BCC) ||
+                       (buf == REJ0_BCC && (A^c) == REJ0_BCC) ||
+                       (buf == REJ1_BCC && (A^c) == REJ1_BCC))
                   *state = BCC_OK;
               else
                   *state = START;
