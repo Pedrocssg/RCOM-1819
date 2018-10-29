@@ -197,7 +197,7 @@ int createBoundPacket(unsigned char *bound, long fileSize, const char *fileName,
 
     unsigned char bccFinal = frame;
 
-    for (i = 0; i <= currentPosition; i++) {
+    for (i = 1; i <= currentPosition; i++) {
         bccFinal ^= bound[i];
     }
 
