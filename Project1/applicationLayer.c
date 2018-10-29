@@ -5,6 +5,7 @@ int main(int argc, char const *argv[]) {
         printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS0\n");
         exit(1);
     }
+    //hello
 
     ApplicationLayer appLayer;
 
