@@ -5,7 +5,6 @@ struct termios oldtio, newtio;
 volatile int STOP=FALSE;
 int flag=1, conta=1;
 unsigned char controlField = I0_C;
-int currentFrame = 1;
 
 // Sender frames
 unsigned char set[5] = {FLAG, A, SET_C, SET_BCC, FLAG};
@@ -123,68 +122,26 @@ int llopenTransmitterHandler(int port){
 }
 
 
-int createBoundFrame(unsigned char *bound, long fileSize, const char *fileName, unsigned char frame) {
-    bound[0] = FLAG;
-    bound[1] = A;
-    bound[2] = controlField;
-    bound[3] = A^controlField;
-    bound[4] = frame;
+int createFrame(unsigned char *frame, int packetSize) {
+    unsigned char packet[MAX_INFO_SIZE];
 
-    bound[5] = T1;
-    bound[6] = LONG_SIZE;
-    bound[7] = (fileSize >> 24) & 0xFF;
-    bound[8] = (fileSize >> 16) & 0xFF;
-    bound[9] = (fileSize >> 8) & 0xFF;
-    bound[10] = fileSize & 0xFF;
-
-    bound[11] = T2;
-    bound[12] = strlen(fileName);
-    int currentPosition = 12;
     size_t i;
-    for (i = 0; i < strlen(fileName); i++) {
-        bound[++currentPosition] = fileName[i];
+    for (i = 0; i < packetSize; i++)
+        packet[i] = frame[i];
+
+    frame[0] = FLAG;
+    frame[1] = A;
+    frame[2] = controlField;
+    frame[3] = A^controlField;
+
+    int currentPosition = 3;
+    for (i = 0; i < packetSize; i++) {
+        frame[++currentPosition] = packet[i];
     }
 
-    unsigned char bccFinal = frame;
+    frame[++currentPosition] = FLAG;
 
-    for (i = 5; i <= currentPosition; i++) {
-        bccFinal ^= bound[i];
-    }
-
-    bound[++currentPosition] = bccFinal;
-    bound[++currentPosition] = FLAG;
-
-    int frameSize = byteStuffing(bound, (currentPosition+1));
-
-    return frameSize;
-}
-
-int createInfoFrame(unsigned char *message, int messageSize, unsigned char *infoFrame) {
-    infoFrame[0] = FLAG;
-    infoFrame[1] = A;
-    infoFrame[2] = controlField;
-    infoFrame[3] = A^controlField;
-    infoFrame[4] = INFO_FRAME;
-
-    infoFrame[5] = currentFrame % BYTE_SIZE;
-    infoFrame[6] = (messageSize >> 8) & 0xFF;
-    infoFrame[7] = messageSize & 0xFF;
-
-    unsigned char bccFinal = infoFrame[4]^infoFrame[5]^infoFrame[6]^infoFrame[7];
-
-    int currentPosition = 8;
-    size_t i;
-    for (i = 0; i < messageSize; i++) {
-        infoFrame[currentPosition++] = message[i];
-        bccFinal ^= message[i];
-    }
-
-    infoFrame[currentPosition++] = bccFinal;
-    infoFrame[currentPosition] = FLAG;
-
-    currentFrame++;
-
-    int frameSize = byteStuffing(infoFrame, (currentPosition+1));
+    int frameSize = byteStuffing(frame, (currentPosition+1));
 
     return frameSize;
 }

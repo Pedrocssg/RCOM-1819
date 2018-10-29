@@ -25,8 +25,7 @@ int llopen(int port, int status);
 int llopenReceiverHandler(int port);
 int llopenTransmitterHandler(int port);
 
-int createBoundFrame(unsigned char *bound, long fileSize, const char *fileName, unsigned char frame);
-int createInfoFrame(unsigned char *message, int messageSize, unsigned char *infoFrame);
+int createFrame(unsigned char *frame, int packetSize);
 int byteStuffing(unsigned char* frame, int frameSize);
 
 int llwrite(int port, unsigned char *buf, int length);

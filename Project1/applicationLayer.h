@@ -14,3 +14,5 @@ int getFileSize(unsigned char * data, int * fileSize);
 int writeFileData(unsigned char * data, int fd);
 
 int transmitter(int port, const char *fileName);
+int createBoundPacket(unsigned char *bound, long fileSize, const char *fileName, unsigned char frame);
+int createInfoPacket(unsigned char *message, int messageSize, unsigned char *infoFrame);

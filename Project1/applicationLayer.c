@@ -1,5 +1,7 @@
 #include "applicationLayer.h"
 
+int currentFrame = 1;
+
 int main(int argc, char const *argv[]) {
     if ((strcmp("/dev/ttyS0", argv[1])!=0) && (strcmp("/dev/ttyS1", argv[1])!=0)) {
         printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS0\n");
@@ -140,8 +142,9 @@ int transmitter(int port, const char *fileName) {
     close(file);
 
     unsigned char boundFrame[MAX_MSG_SIZE];
-    int frameSize;
-    frameSize = createBoundFrame(boundFrame, fileSize, fileName, START_FRAME);
+    int frameSize, packetSize;
+    packetSize = createBoundPacket(boundFrame, fileSize, fileName, START_FRAME);
+    frameSize = createFrame(boundFrame, packetSize);
 
     if (llwrite(port, boundFrame, frameSize) == -1)
         return -1;
@@ -156,7 +159,8 @@ int transmitter(int port, const char *fileName) {
     unsigned char infoFrame[MAX_FRAME_SIZE*2];
     do {
         messageSize = read(file, message, MAX_MSG_SIZE);
-        frameSize = createInfoFrame(message, messageSize, infoFrame);
+        packetSize = createInfoPacket(message, messageSize, infoFrame);
+        frameSize = createFrame(infoFrame, packetSize);
 
         if (llwrite(port, infoFrame, frameSize) == -1)
             return -1;
@@ -164,10 +168,63 @@ int transmitter(int port, const char *fileName) {
 
     close(file);
 
-    frameSize = createBoundFrame(boundFrame, fileSize, fileName, END_FRAME);
+    packetSize = createBoundPacket(boundFrame, fileSize, fileName, END_FRAME);
+    frameSize = createFrame(boundFrame, packetSize);
 
     if (llwrite(port, boundFrame, frameSize) == -1)
         return -1;
 
     return 0;
+}
+
+int createBoundPacket(unsigned char *bound, long fileSize, const char *fileName, unsigned char frame) {
+    bound[0] = frame;
+
+    bound[1] = T1;
+    bound[2] = LONG_SIZE;
+    bound[3] = (fileSize >> 24) & 0xFF;
+    bound[4] = (fileSize >> 16) & 0xFF;
+    bound[5] = (fileSize >> 8) & 0xFF;
+    bound[6] = fileSize & 0xFF;
+
+    bound[7] = T2;
+    bound[8] = strlen(fileName);
+    int currentPosition = 8;
+    size_t i;
+    for (i = 0; i < strlen(fileName); i++) {
+        bound[++currentPosition] = fileName[i];
+    }
+
+    unsigned char bccFinal = frame;
+
+    for (i = 0; i <= currentPosition; i++) {
+        bccFinal ^= bound[i];
+    }
+
+    bound[++currentPosition] = bccFinal;
+
+    return (currentPosition+1);
+}
+
+int createInfoPacket(unsigned char *message, int messageSize, unsigned char *infoFrame) {
+    infoFrame[0] = INFO_FRAME;
+
+    infoFrame[1] = currentFrame % BYTE_SIZE;
+    infoFrame[2] = (messageSize >> 8) & 0xFF;
+    infoFrame[3] = messageSize & 0xFF;
+
+    unsigned char bccFinal = infoFrame[0]^infoFrame[1]^infoFrame[2]^infoFrame[3];
+
+    int currentPosition = 4;
+    size_t i;
+    for (i = 0; i < messageSize; i++) {
+        infoFrame[currentPosition++] = message[i];
+        bccFinal ^= message[i];
+    }
+
+    infoFrame[currentPosition++] = bccFinal;
+
+    currentFrame++;
+
+    return currentPosition;
 }
