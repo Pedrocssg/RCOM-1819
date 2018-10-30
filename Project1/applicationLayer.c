@@ -80,7 +80,9 @@ int receiver(int port) {
         if((messageSize = llread(port, filedata)) == -1)
             return -1;
 
-        if(messageSize != -2 || messageSize != -3)
+        printf("messageSize: %d\n", messageSize);
+
+        if(messageSize != -2 && messageSize != -3)
             if(writeFileData(filedata, file) == -1)
               return -1;
     }while(messageSize != -2);

@@ -220,15 +220,15 @@ int llread(int port, unsigned char *data){
                       state = C_RCV;
                   }
                   else if (buf == (controlField ^ I1_C)) {
-                      STOP = TRUE;
-                      controlField = controlField ^ I1_C;
                       repeated = TRUE;
+                      state = C_RCV;
                   }
                   else
                       state = START;
                   break;
               case C_RCV:
-                  if (buf == (A^controlField))
+                  if ((repeated == FALSE && buf == (A^controlField)) ||
+                      (repeated == TRUE && buf == (A^(controlField^I1_C))))
                       state = BCC_OK;
                   else if (buf == FLAG)
                       state = FLAG_RCV;
@@ -251,8 +251,13 @@ int llread(int port, unsigned char *data){
                       return -1;
                   }
                   else if (buf == INFO_FRAME){
-                    if((size = processInfoFrame(port, data, buf)) >= 0)
+                    size = processInfoFrame(port, data, buf);
+                    if(size > 0)
                         STOP = TRUE;
+                    else if (size == 0 || size == -2){
+                        rej = TRUE;
+                        STOP = TRUE;
+                    }
                     else
                         return -1;
                   }
@@ -269,20 +274,32 @@ int llread(int port, unsigned char *data){
         }
     }
 
+    printf("Info received\n");
+
     unsigned char * answer;
 
-    controlField = controlField ^ I1_C;
+    if (repeated == FALSE)
+        controlField = controlField ^ I1_C;
+    
     if(rej == TRUE){
-        if(controlField == I0_C)
+        if(controlField == I0_C){
             answer = rej0;
-        else if(controlField == I1_C)
+            printf("rej0\n");
+        }
+        else if(controlField == I1_C){
             answer = rej1;
+            printf("rej1\n");
+        }
     }
     else{
-        if(controlField == I0_C)
+        if(controlField == I0_C){
             answer = rr0;
-        else if(controlField == I1_C)
+            printf("rr0\n");
+        }
+        else if(controlField == I1_C){
             answer = rr1;
+            printf("rr1\n");
+        }
     }
 
     if((res = write(port,answer,5)) == -1) {
@@ -425,9 +442,12 @@ int llwrite(int port, unsigned char *buf, int length) {
     conta = 1;
     flag = 1;
     STOP = FALSE;
+    int repeated = FALSE;
     int i = 0, res, ret;
 
-    while(conta < 4 && STOP == FALSE){
+    while(conta < 4 && (STOP == FALSE || repeated == TRUE)) {
+        repeated = FALSE;
+
         if(flag){
             alarm(3);                 // activa alarme de 3s
             flag=0;
@@ -440,8 +460,11 @@ int llwrite(int port, unsigned char *buf, int length) {
             printf("Info sent, %d bytes written.\n", res);
         }
 
-        if ((ret = stateMachineInfoAnswer(port, &i)) == -1)
+        ret = stateMachineInfoAnswer(port, &i);
+        if (ret == -1)
             exit(-1);
+        else if (ret == -2) 
+            repeated = TRUE;
     }
 
     if (conta != 4)
@@ -489,11 +512,7 @@ int stateMachineInfoAnswer(int port, int *state) {
                   *state = FLAG_RCV;
                   break;
               }
-              else if ((controlField == I1_C && buf == RR_C_N0) || (controlField == I0_C && buf == RR_C_N1)) {
-                  *state = C_RCV;
-                  c = buf;
-              }
-              else if ((controlField == I1_C && buf == REJ0_BCC) || (controlField == I0_C && buf == REJ1_BCC)) {
+              else if (buf == RR_C_N0 || buf == RR_C_N1 || buf == REJ_C_N0 || buf == REJ_C_N1) {
                   *state = C_RCV;
                   c = buf;
               }
@@ -514,6 +533,13 @@ int stateMachineInfoAnswer(int port, int *state) {
           case BCC_OK:
               if (buf == FLAG && (c == RR_C_N0 || c == RR_C_N1))
                   STOP = TRUE;
+              else if (buf == FLAG && (c == REJ_C_N0 || c == REJ_C_N1)){
+                  alarm(0);
+                  flag = 1;
+                  *state = START;
+                  printf("Rej received\n");
+                  return -2;
+              }
               else
                   *state = START;
               break;
