@@ -194,8 +194,8 @@ int llread(int port, unsigned char *data){
     STOP = FALSE;
 
     while(STOP == FALSE) {
-
         res = read(port, &buf, 1);
+
         if (res < 0) {
             printf("There was an error while reading the buffer.\n");
             return -1;
@@ -238,17 +238,20 @@ int llread(int port, unsigned char *data){
               case BCC_OK:
                   if (buf == START_FRAME || buf == END_FRAME){
                     size = processBoundFrame(port, data, buf);
-                    if(size >= 0) {
+                    if(size > 0) {
+                        if(REJ == TRUE && repeated == TRUE)
+                            repeated = FALSE;
+
                         STOP = TRUE;
                         if(buf == END_FRAME)
                           stopData = TRUE;
                     }
-                    else if(size == -2){
+                    else if(size == 0 || size == -4){
                         REJ = TRUE;
                         STOP = TRUE;
                     }
                     else
-                      return -1;
+                        return -1;
                   }
                   else if (buf == INFO_FRAME){
                     size = processInfoFrame(port, data, buf);
@@ -259,7 +262,7 @@ int llread(int port, unsigned char *data){
                         REJ = FALSE;
                         STOP = TRUE;
                     }
-                    else if (size == 0 || size == -2){
+                    else if (size == 0 || size == -4){
                         REJ = TRUE;
                         STOP = TRUE;
                     }
@@ -291,12 +294,16 @@ int llread(int port, unsigned char *data){
             answer = rej0;
         else if(controlField == I1_C)
             answer = rej1;
+
+        printf("Rej sent, ");
     }
     else{
         if(controlField == I0_C)
             answer = rr0;
         else if(controlField == I1_C)
             answer = rr1;
+
+        printf("Rr sent, ");
     }
 
     if((res = write(port,answer,5)) == -1) {
@@ -304,7 +311,8 @@ int llread(int port, unsigned char *data){
         return -1;
     }
 
-    printf("Receiver ready sent, %d bytes written\n", res);
+    printf("%d bytes written\n", res);
+
 
     if (stopData == TRUE)
         return -2;
@@ -323,6 +331,7 @@ int processBoundFrame(int port, unsigned char * data, unsigned char c){
 
   while(TRUE){
     res = read(port, &buf, 1);
+
     if (res < 0) {
         printf("There was an error while reading the buffer.\n");
         return -1;
@@ -337,7 +346,7 @@ int processBoundFrame(int port, unsigned char * data, unsigned char c){
           return size;
         }
         else{
-          return -2;
+          return -4;
         }
       }
       else if(buf == ESC){
@@ -383,6 +392,7 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c){
 
   while(TRUE){
     res = read(port, &buf, 1);
+
     if (res < 0) {
         printf("There was an error while reading the buffer.\n");
         return -1;
@@ -397,7 +407,7 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c){
           return size;
         }
         else{
-          return -2;
+          return -4;
         }
       }
       else if(buf == ESC){
