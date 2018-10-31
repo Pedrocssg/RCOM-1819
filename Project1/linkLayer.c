@@ -289,21 +289,17 @@ int llread(int port, unsigned char *data){
     if(REJ == TRUE){
         if(controlField == I0_C){
             answer = rej0;
-            printf("rej0\n");
         }
         else if(controlField == I1_C){
             answer = rej1;
-            printf("rej1\n");
         }
     }
     else{
         if(controlField == I0_C){
             answer = rr0;
-            printf("rr0\n");
         }
         else if(controlField == I1_C){
             answer = rr1;
-            printf("rr1\n");
         }
     }
 
@@ -660,12 +656,10 @@ int stateMachineSupervision(int port, int *state, unsigned char *frame) {
         return -1;
     }
     else if (res == 0) {
-          printf("NOT RECEIVING DISC\n");
         return 0;
     }
     else {
         switch (*state) {
-          printf("DISC:%x\n", buf);
           case START:
               if (buf == frame[0])
                   *state = FLAG_RCV;
