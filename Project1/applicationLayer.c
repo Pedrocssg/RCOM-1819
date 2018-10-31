@@ -80,7 +80,9 @@ int receiver(int port) {
         if((messageSize = llread(port, filedata)) == -1)
             return -1;
 
-        if(messageSize != -2 || messageSize != -3)
+        printf("messageSize: %d\n", messageSize);
+
+        if(messageSize != -2 && messageSize != -3 && messageSize > 0)
             if(writeFileData(filedata, file) == -1)
               return -1;
     }while(messageSize != -2);
@@ -128,6 +130,13 @@ int writeFileData(unsigned char * data, int fd) {
     int res;
     if((res = write(fd, &data[4], k)) == -1)
         return -1;
+
+
+    printf("Writing ");
+    int i;
+    for(i = 0; i < k; i++)
+        printf("%x ",data[4+i]);
+    printf("\n");
 
     return 0;
 }
