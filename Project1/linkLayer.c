@@ -285,26 +285,18 @@ int llread(int port, unsigned char *data){
 
     if (repeated == FALSE && REJ == FALSE)
         controlField = controlField ^ I1_C;
-    
+
     if(REJ == TRUE){
-        if(controlField == I0_C){
+        if(controlField == I0_C)
             answer = rej0;
-            printf("rej0\n");
-        }
-        else if(controlField == I1_C){
+        else if(controlField == I1_C)
             answer = rej1;
-            printf("rej1\n");
-        }
     }
     else{
-        if(controlField == I0_C){
+        if(controlField == I0_C)
             answer = rr0;
-            printf("rr0\n");
-        }
-        else if(controlField == I1_C){
+        else if(controlField == I1_C)
             answer = rr1;
-            printf("rr1\n");
-        }
     }
 
     if((res = write(port,answer,5)) == -1) {
@@ -468,7 +460,7 @@ int llwrite(int port, unsigned char *buf, int length) {
         ret = stateMachineInfoAnswer(port, &i);
         if (ret == -1)
             exit(-1);
-        else if (ret == -2) 
+        else if (ret == -2)
             repeated = TRUE;
     }
 
@@ -660,12 +652,10 @@ int stateMachineSupervision(int port, int *state, unsigned char *frame) {
         return -1;
     }
     else if (res == 0) {
-          printf("NOT RECEIVING DISC\n");
         return 0;
     }
     else {
         switch (*state) {
-          printf("DISC:%x\n", buf);
           case START:
               if (buf == frame[0])
                   *state = FLAG_RCV;
