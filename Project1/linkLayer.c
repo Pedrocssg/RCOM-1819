@@ -3,6 +3,7 @@
 struct termios oldtio, newtio;
 
 volatile int STOP=FALSE;
+int REJ = FALSE;
 int flag=1, conta=1;
 unsigned char controlField = I0_C;
 
@@ -185,7 +186,6 @@ int byteStuffing(unsigned char* frame, int frameSize) {
 
 int llread(int port, unsigned char *data){
     int res;
-    int rej = FALSE;
     int size = 0;
     unsigned char buf;
     int state = 0;
@@ -244,7 +244,7 @@ int llread(int port, unsigned char *data){
                           stopData = TRUE;
                     }
                     else if(size == -2){
-                        rej = TRUE;
+                        REJ = TRUE;
                         STOP = TRUE;
                     }
                     else
@@ -252,10 +252,15 @@ int llread(int port, unsigned char *data){
                   }
                   else if (buf == INFO_FRAME){
                     size = processInfoFrame(port, data, buf);
-                    if(size > 0)
+                    if(size > 0){
+                        if(REJ == TRUE && repeated == TRUE)
+                            repeated = FALSE;
+
+                        REJ = FALSE;
                         STOP = TRUE;
+                    }
                     else if (size == 0 || size == -2){
-                        rej = TRUE;
+                        REJ = TRUE;
                         STOP = TRUE;
                     }
                     else
@@ -278,10 +283,10 @@ int llread(int port, unsigned char *data){
 
     unsigned char * answer;
 
-    if (repeated == FALSE)
+    if (repeated == FALSE && REJ == FALSE)
         controlField = controlField ^ I1_C;
     
-    if(rej == TRUE){
+    if(REJ == TRUE){
         if(controlField == I0_C){
             answer = rej0;
             printf("rej0\n");
@@ -572,10 +577,11 @@ int llcloseReceiver(int port) {
 
     printf("DISC sent, %d bytes written\n", res);
 
-    while (STOP == FALSE) {
 
-    if((ret = stateMachineSupervision(port,&i,ua_em)) == -1)
-    return -1;
+    STOP = FALSE;
+    while (STOP == FALSE) {
+        if((ret = stateMachineSupervision(port,&i,ua_em)) == -1)
+            return -1;
     }
 
     printf("UA received\n");
@@ -605,6 +611,7 @@ int llcloseTransmitter(int port) {
                 printf("An error has occured writing the message.\n");
                 return -1;
             }
+
 
             printf("DISC sent, %d bytes written.\n", res);
         }
@@ -653,10 +660,12 @@ int stateMachineSupervision(int port, int *state, unsigned char *frame) {
         return -1;
     }
     else if (res == 0) {
+          printf("NOT RECEIVING DISC\n");
         return 0;
     }
     else {
         switch (*state) {
+          printf("DISC:%x\n", buf);
           case START:
               if (buf == frame[0])
                   *state = FLAG_RCV;
