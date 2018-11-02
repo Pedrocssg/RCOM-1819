@@ -194,8 +194,8 @@ int llread(int port, unsigned char *data){
     STOP = FALSE;
 
     while(STOP == FALSE) {
-
         res = read(port, &buf, 1);
+
         if (res < 0) {
             printf("There was an error while reading the buffer.\n");
             return -1;
@@ -238,17 +238,20 @@ int llread(int port, unsigned char *data){
               case BCC_OK:
                   if (buf == START_FRAME || buf == END_FRAME){
                     size = processBoundFrame(port, data, buf);
-                    if(size >= 0) {
+                    if(size > 0) {
+                        if(REJ == TRUE && repeated == TRUE)
+                            repeated = FALSE;
+
                         STOP = TRUE;
                         if(buf == END_FRAME)
                           stopData = TRUE;
                     }
-                    else if(size == -2){
+                    else if(size == 0 || size == -4){
                         REJ = TRUE;
                         STOP = TRUE;
                     }
                     else
-                      return -1;
+                        return -1;
                   }
                   else if (buf == INFO_FRAME){
                     size = processInfoFrame(port, data, buf);
@@ -259,7 +262,7 @@ int llread(int port, unsigned char *data){
                         REJ = FALSE;
                         STOP = TRUE;
                     }
-                    else if (size == 0 || size == -2){
+                    else if (size == 0 || size == -4){
                         REJ = TRUE;
                         STOP = TRUE;
                     }
@@ -285,26 +288,22 @@ int llread(int port, unsigned char *data){
 
     if (repeated == FALSE && REJ == FALSE)
         controlField = controlField ^ I1_C;
-    
+
     if(REJ == TRUE){
-        if(controlField == I0_C){
+        if(controlField == I0_C)
             answer = rej0;
-            printf("rej0\n");
-        }
-        else if(controlField == I1_C){
+        else if(controlField == I1_C)
             answer = rej1;
-            printf("rej1\n");
-        }
+
+        printf("Rej sent, ");
     }
     else{
-        if(controlField == I0_C){
+        if(controlField == I0_C)
             answer = rr0;
-            printf("rr0\n");
-        }
-        else if(controlField == I1_C){
+        else if(controlField == I1_C)
             answer = rr1;
-            printf("rr1\n");
-        }
+
+        printf("Rr sent, ");
     }
 
     if((res = write(port,answer,5)) == -1) {
@@ -312,7 +311,8 @@ int llread(int port, unsigned char *data){
         return -1;
     }
 
-    printf("Receiver ready sent, %d bytes written\n", res);
+    printf("%d bytes written\n", res);
+
 
     if (stopData == TRUE)
         return -2;
@@ -331,6 +331,7 @@ int processBoundFrame(int port, unsigned char * data, unsigned char c){
 
   while(TRUE){
     res = read(port, &buf, 1);
+
     if (res < 0) {
         printf("There was an error while reading the buffer.\n");
         return -1;
@@ -345,7 +346,7 @@ int processBoundFrame(int port, unsigned char * data, unsigned char c){
           return size;
         }
         else{
-          return -2;
+          return -4;
         }
       }
       else if(buf == ESC){
@@ -391,6 +392,7 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c){
 
   while(TRUE){
     res = read(port, &buf, 1);
+
     if (res < 0) {
         printf("There was an error while reading the buffer.\n");
         return -1;
@@ -405,7 +407,7 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c){
           return size;
         }
         else{
-          return -2;
+          return -4;
         }
       }
       else if(buf == ESC){
@@ -468,14 +470,12 @@ int llwrite(int port, unsigned char *buf, int length) {
         ret = stateMachineInfoAnswer(port, &i);
         if (ret == -1)
             exit(-1);
-        else if (ret == -2) 
+        else if (ret == -2)
             repeated = TRUE;
     }
 
-    if (conta != 4)
-        printf("Answer received\n");
-    else {
-        printf("Answer not received\n");
+    if (conta == 4) {
+        printf("Exceeded maximum attempts.\n");
         return -1;
     }
 
@@ -498,6 +498,7 @@ int stateMachineInfoAnswer(int port, int *state) {
         return -1;
     }
     else if (res == 0) {
+        printf("Nothing received\n");
         return 0;
     }
     else {
@@ -505,48 +506,63 @@ int stateMachineInfoAnswer(int port, int *state) {
           case START:
               if (buf == FLAG)
                   *state = FLAG_RCV;
+              else
+                  printf("Nothing received\n");
               break;
           case FLAG_RCV:
               if (buf == A)
                   *state = A_RCV;
-              else if (buf != FLAG)
+              else if (buf == FLAG){
+                  printf("Nothing received\n");
+              }
+              else{
                   *state = START;
+                  printf("Nothing received\n");
+              }
               break;
           case A_RCV:
               if (buf == FLAG) {
                   *state = FLAG_RCV;
-                  break;
+                  printf("Nothing received\n");
               }
               else if (buf == RR_C_N0 || buf == RR_C_N1 || buf == REJ_C_N0 || buf == REJ_C_N1) {
                   *state = C_RCV;
                   c = buf;
               }
-              else
+              else{
                   *state = START;
+                  printf("Nothing received\n");
+              }
               break;
           case C_RCV:
-              if (buf == FLAG)
+              if (buf == FLAG) {
                   *state = FLAG_RCV;
+                  printf("Nothing received\n");
+              }
               else if ((buf == RR0_BCC && (A^c) == RR0_BCC) ||
                        (buf == RR1_BCC && (A^c) == RR1_BCC) ||
                        (buf == REJ0_BCC && (A^c) == REJ0_BCC) ||
                        (buf == REJ1_BCC && (A^c) == REJ1_BCC))
                   *state = BCC_OK;
-              else
+              else{
                   *state = START;
+                  printf("Nothing received\n");
+              }
               break;
           case BCC_OK:
-              if (buf == FLAG && (c == RR_C_N0 || c == RR_C_N1))
+              if (buf == FLAG && (c == RR_C_N0 || c == RR_C_N1)){
                   STOP = TRUE;
+                  printf("Rr received\n");
+              }
               else if (buf == FLAG && (c == REJ_C_N0 || c == REJ_C_N1)){
-                  alarm(0);
-                  flag = 1;
                   *state = START;
                   printf("Rej received\n");
                   return -2;
               }
-              else
+              else{
                   *state = START;
+                  printf("Nothing received\n");
+              }
               break;
           default:
               printf("There was an error or the message is not valid.\n");
@@ -660,12 +676,10 @@ int stateMachineSupervision(int port, int *state, unsigned char *frame) {
         return -1;
     }
     else if (res == 0) {
-          printf("NOT RECEIVING DISC\n");
         return 0;
     }
     else {
         switch (*state) {
-          printf("DISC:%x\n", buf);
           case START:
               if (buf == frame[0])
                   *state = FLAG_RCV;
