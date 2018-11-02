@@ -14,7 +14,7 @@ typedef struct {
     int baudRate;
     unsigned char sequenceNumber;
     unsigned int timeout;
-    unsigned int numTansmissions;
+    unsigned int numTransmissions;
     unsigned int maxFrameSize;
 } LinkLayer;
 
