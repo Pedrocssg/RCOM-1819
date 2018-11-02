@@ -474,10 +474,8 @@ int llwrite(int port, unsigned char *buf, int length) {
             repeated = TRUE;
     }
 
-    if (conta != 4)
-        printf("Answer received\n");
-    else {
-        printf("Answer not received\n");
+    if (conta == 4) {
+        printf("Exceeded maximum attempts.\n");
         return -1;
     }
 
@@ -500,6 +498,7 @@ int stateMachineInfoAnswer(int port, int *state) {
         return -1;
     }
     else if (res == 0) {
+        printf("Nothing received\n");
         return 0;
     }
     else {
@@ -507,48 +506,63 @@ int stateMachineInfoAnswer(int port, int *state) {
           case START:
               if (buf == FLAG)
                   *state = FLAG_RCV;
+              else
+                  printf("Nothing received\n");
               break;
           case FLAG_RCV:
               if (buf == A)
                   *state = A_RCV;
-              else if (buf != FLAG)
+              else if (buf == FLAG){
+                  printf("Nothing received\n");
+              }
+              else{
                   *state = START;
+                  printf("Nothing received\n");
+              }
               break;
           case A_RCV:
               if (buf == FLAG) {
                   *state = FLAG_RCV;
-                  break;
+                  printf("Nothing received\n");
               }
               else if (buf == RR_C_N0 || buf == RR_C_N1 || buf == REJ_C_N0 || buf == REJ_C_N1) {
                   *state = C_RCV;
                   c = buf;
               }
-              else
+              else{
                   *state = START;
+                  printf("Nothing received\n");
+              }
               break;
           case C_RCV:
-              if (buf == FLAG)
+              if (buf == FLAG) {
                   *state = FLAG_RCV;
+                  printf("Nothing received\n");
+              }
               else if ((buf == RR0_BCC && (A^c) == RR0_BCC) ||
                        (buf == RR1_BCC && (A^c) == RR1_BCC) ||
                        (buf == REJ0_BCC && (A^c) == REJ0_BCC) ||
                        (buf == REJ1_BCC && (A^c) == REJ1_BCC))
                   *state = BCC_OK;
-              else
+              else{
                   *state = START;
+                  printf("Nothing received\n");
+              }
               break;
           case BCC_OK:
-              if (buf == FLAG && (c == RR_C_N0 || c == RR_C_N1))
+              if (buf == FLAG && (c == RR_C_N0 || c == RR_C_N1)){
                   STOP = TRUE;
+                  printf("Rr received\n");
+              }
               else if (buf == FLAG && (c == REJ_C_N0 || c == REJ_C_N1)){
-                  alarm(0);
-                  flag = 1;
                   *state = START;
                   printf("Rej received\n");
                   return -2;
               }
-              else
+              else{
                   *state = START;
+                  printf("Nothing received\n");
+              }
               break;
           default:
               printf("There was an error or the message is not valid.\n");
