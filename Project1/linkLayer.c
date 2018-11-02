@@ -575,12 +575,14 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c){
 }
 
 
-int llwrite(int port, unsigned char *buf, int length) {
+int llwrite(int port, unsigned char *buf, int *length) {
     counter = 1;
     flag = 1;
     STOP = FALSE;
     int repeated = FALSE;
     int i = 0, res, ret;
+
+    *length = createFrame(buf, *length);
 
     while(counter < (linkLayer.numTansmissions + 1) && (STOP == FALSE || repeated == TRUE)) {
         repeated = FALSE;
@@ -589,7 +591,7 @@ int llwrite(int port, unsigned char *buf, int length) {
             alarm(linkLayer.timeout);
             flag=0;
 
-            if ((res = write(port, buf, length)) == -1) {
+            if ((res = write(port, buf, *length)) == -1) {
                 printf("An error has occured writing the message.\n");
                 return -1;
             }

@@ -147,12 +147,11 @@ int transmitter(int port, const char *fileName) {
     close(file);
 
 
-    unsigned char boundFrame[linkLayer.maxFrameSize - HEADER];
-    int frameSize, packetSize;
-    packetSize = createBoundPacket(boundFrame, fileSize, fileName, START_FRAME);
-    frameSize = createFrame(boundFrame, packetSize);
+    unsigned char boundPacket[linkLayer.maxFrameSize - HEADER];
+    int packetSize;
+    packetSize = createBoundPacket(boundPacket, fileSize, fileName, START_FRAME);
 
-    if (llwrite(port, boundFrame, frameSize) == -1)
+    if (llwrite(port, boundPacket, &packetSize) == -1)
         return -1;
 
     if ((file = open(fileName, O_RDONLY)) == -1) {
@@ -163,23 +162,21 @@ int transmitter(int port, const char *fileName) {
     int messageSize;
 
     unsigned char message[linkLayer.maxFrameSize - HEADER];
-    unsigned char infoFrame[linkLayer.maxFrameSize*2];
+    unsigned char infoPacket[linkLayer.maxFrameSize*2];
     do {
         messageSize = read(file, message, linkLayer.maxFrameSize - HEADER);
-        packetSize = createInfoPacket(message, messageSize, infoFrame);
-        frameSize = createFrame(infoFrame, packetSize);
+        packetSize = createInfoPacket(message, messageSize, infoPacket);
 
 
-        if (llwrite(port, infoFrame, frameSize) == -1)
+        if (llwrite(port, infoPacket, &packetSize) == -1)
             return -1;
     } while (messageSize == linkLayer.maxFrameSize - HEADER);
 
     close(file);
 
-    packetSize = createBoundPacket(boundFrame, fileSize, fileName, END_FRAME);
-    frameSize = createFrame(boundFrame, packetSize);
+    packetSize = createBoundPacket(boundPacket, fileSize, fileName, END_FRAME);
 
-    if (llwrite(port, boundFrame, frameSize) == -1)
+    if (llwrite(port, boundPacket, &packetSize) == -1)
         return -1;
 
     return 0;

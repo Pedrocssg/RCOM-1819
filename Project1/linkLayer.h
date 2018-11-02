@@ -29,7 +29,7 @@ int llopenTransmitterHandler(int port);
 int createFrame(unsigned char *frame, int packetSize);
 int byteStuffing(unsigned char* frame, int frameSize);
 
-int llwrite(int port, unsigned char *buf, int length);
+int llwrite(int port, unsigned char *buf, int *length);
 int stateMachineInfoAnswer(int port, int *state);
 
 int llread(int port, unsigned char *data);
