@@ -4,8 +4,7 @@ struct termios oldtio, newtio;
 
 volatile int STOP=FALSE;
 int REJ = FALSE;
-int flag=1, conta=1;
-unsigned char controlField = I0_C;
+int flag=1, counter=1;
 
 // Sender frames
 unsigned char set[5] = {FLAG, A, SET_C, SET_BCC, FLAG};
@@ -20,10 +19,103 @@ unsigned char rr1[5] = {FLAG, A, RR_C_N1, RR1_BCC, FLAG};
 unsigned char rej0[5] = {FLAG, A, REJ_C_N0, REJ0_BCC, FLAG};
 unsigned char rej1[5] = {FLAG, A, REJ_C_N1, REJ1_BCC, FLAG};
 
-void atende() {
-    printf("alarme # %d\n", conta);
+void timeout() {
+    printf("alarm # %d\n", counter);
     flag=1;
-    conta++;
+    counter++;
+}
+
+int setLinkLayer(){
+
+  char *end;
+  char buf[255];
+  int n, valid;
+
+  printf("Setting up\n");
+
+  linkLayer.sequenceNumber = I0_C;
+
+  printf("Baudrate (110, 150, 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600): ");
+
+  do {
+      valid = FALSE;
+      if (!fgets(buf, sizeof buf, stdin))
+          break;
+
+      buf[strlen(buf) - 1] = 0;
+
+      n = strtol(buf, &end, 10);
+
+      if(n == 110 || n == 150 || n == 300 || n == 1200 || n == 2400 || n == 4800 || n == 9600 || n == 19200 || n == 38400 || n == 57600 || n == 115200 || n == 230400 || n == 460800 || n == 921600)
+          valid = TRUE;
+      else
+          printf("Please enter a valid baudrate: ");
+
+  }while (end != buf + strlen(buf) || !valid);
+
+  linkLayer.baudRate = n;
+
+  printf("Timeout (in seconds): ");
+
+  do {
+       valid = FALSE;
+       if (!fgets(buf, sizeof buf, stdin))
+          break;
+
+       buf[strlen(buf) - 1] = 0;
+
+       n = strtol(buf, &end, 10);
+
+       if(n > 0)
+          valid = TRUE;
+       else
+          printf("Please enter a valid timeout: ");
+
+  }while (end != buf + strlen(buf) || !valid);
+
+  linkLayer.timeout = n;
+
+  printf("Retransmissions: ");
+
+  do {
+       valid = FALSE;
+       if (!fgets(buf, sizeof buf, stdin))
+          break;
+
+       buf[strlen(buf) - 1] = 0;
+
+       n = strtol(buf, &end, 10);
+
+       if(n > 0)
+          valid = TRUE;
+       else
+          printf("Please enter a valid retransmission value: ");
+
+  }while (end != buf + strlen(buf) || !valid);
+
+  linkLayer.numTansmissions = n;
+
+  printf("Maximum frame size: ");
+
+  do {
+       valid = FALSE;
+       if (!fgets(buf, sizeof buf, stdin))
+          break;
+
+       buf[strlen(buf) - 1] = 0;
+
+       n = strtol(buf, &end, 10);
+
+       if(n < 0xffff)
+          valid = TRUE;
+       else
+          printf("Please enter a valid maximum frame size value: ");
+
+  }while (end != buf + strlen(buf) || !valid);
+
+  linkLayer.maxFrameSize = n;
+
+  return 0;
 }
 
 int llopen(int port, int status) {
@@ -33,7 +125,7 @@ int llopen(int port, int status) {
     }
 
     bzero(&newtio, sizeof(newtio));
-    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+    newtio.c_cflag = linkLayer.baudRate | CS8 | CLOCAL | CREAD;
     newtio.c_iflag = IGNPAR;
     newtio.c_oflag = 0;
 
@@ -90,11 +182,11 @@ int llopenReceiverHandler(int port){
 int llopenTransmitterHandler(int port){
     int i = 0, res, ret;
 
-    signal(SIGALRM, atende);
+    signal(SIGALRM, timeout);
 
-    while(conta < 4 && STOP == FALSE){
+    while(counter < (linkLayer.numTansmissions + 1) && STOP == FALSE){
         if(flag){
-            alarm(3);
+            alarm(linkLayer.timeout);
             flag=0;
 
             if ((res = write(port, set, 5)) == -1) {
@@ -109,7 +201,7 @@ int llopenTransmitterHandler(int port){
             return -1;
     }
 
-    if (conta != 4) {
+    if (counter != (linkLayer.numTansmissions + 1)) {
         printf("UA received.\n");
     }
     else {
@@ -124,7 +216,7 @@ int llopenTransmitterHandler(int port){
 
 
 int createFrame(unsigned char *frame, int packetSize) {
-    unsigned char packet[MAX_INFO_SIZE];
+    unsigned char packet[linkLayer.maxFrameSize - PACKET_HEADER];
 
     size_t i;
     for (i = 0; i < packetSize; i++)
@@ -132,8 +224,8 @@ int createFrame(unsigned char *frame, int packetSize) {
 
     frame[0] = FLAG;
     frame[1] = A;
-    frame[2] = controlField;
-    frame[3] = A^controlField;
+    frame[2] = linkLayer.sequenceNumber;
+    frame[3] = A^linkLayer.sequenceNumber;
 
     int currentPosition = 3;
     for (i = 0; i < packetSize; i++) {
@@ -216,10 +308,10 @@ int llread(int port, unsigned char *data){
                       state=START;
                   break;
               case A_RCV:
-                  if (buf == controlField){
+                  if (buf == linkLayer.sequenceNumber){
                       state = C_RCV;
                   }
-                  else if (buf == (controlField ^ I1_C)) {
+                  else if (buf == (linkLayer.sequenceNumber ^ I1_C)) {
                       repeated = TRUE;
                       state = C_RCV;
                   }
@@ -227,8 +319,8 @@ int llread(int port, unsigned char *data){
                       state = START;
                   break;
               case C_RCV:
-                  if ((repeated == FALSE && buf == (A^controlField)) ||
-                      (repeated == TRUE && buf == (A^(controlField^I1_C))))
+                  if ((repeated == FALSE && buf == (A^linkLayer.sequenceNumber)) ||
+                      (repeated == TRUE && buf == (A^(linkLayer.sequenceNumber^I1_C))))
                       state = BCC_OK;
                   else if (buf == FLAG)
                       state = FLAG_RCV;
@@ -287,20 +379,20 @@ int llread(int port, unsigned char *data){
     unsigned char * answer;
 
     if (repeated == FALSE && REJ == FALSE)
-        controlField = controlField ^ I1_C;
+        linkLayer.sequenceNumber ^= I1_C;
 
     if(REJ == TRUE){
-        if(controlField == I0_C)
+        if(linkLayer.sequenceNumber == I0_C)
             answer = rej0;
-        else if(controlField == I1_C)
+        else if(linkLayer.sequenceNumber == I1_C)
             answer = rej1;
 
         printf("Rej sent, ");
     }
     else{
-        if(controlField == I0_C)
+        if(linkLayer.sequenceNumber == I0_C)
             answer = rr0;
-        else if(controlField == I1_C)
+        else if(linkLayer.sequenceNumber == I1_C)
             answer = rr1;
 
         printf("Rr sent, ");
@@ -446,17 +538,17 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c){
 
 
 int llwrite(int port, unsigned char *buf, int length) {
-    conta = 1;
+    counter = 1;
     flag = 1;
     STOP = FALSE;
     int repeated = FALSE;
     int i = 0, res, ret;
 
-    while(conta < 4 && (STOP == FALSE || repeated == TRUE)) {
+    while(counter < (linkLayer.numTansmissions + 1) && (STOP == FALSE || repeated == TRUE)) {
         repeated = FALSE;
 
         if(flag){
-            alarm(3);                 // activa alarme de 3s
+            alarm(linkLayer.timeout);
             flag=0;
 
             if ((res = write(port, buf, length)) == -1) {
@@ -474,14 +566,14 @@ int llwrite(int port, unsigned char *buf, int length) {
             repeated = TRUE;
     }
 
-    if (conta == 4) {
+    if (counter == (linkLayer.numTansmissions + 1)) {
         printf("Exceeded maximum attempts.\n");
         return -1;
     }
 
     alarm(0);
 
-    controlField ^= I1_C;
+    linkLayer.sequenceNumber ^= I1_C;
 
     return 0;
 }
@@ -498,7 +590,6 @@ int stateMachineInfoAnswer(int port, int *state) {
         return -1;
     }
     else if (res == 0) {
-        printf("Nothing received\n");
         return 0;
     }
     else {
@@ -506,8 +597,6 @@ int stateMachineInfoAnswer(int port, int *state) {
           case START:
               if (buf == FLAG)
                   *state = FLAG_RCV;
-              else
-                  printf("Nothing received\n");
               break;
           case FLAG_RCV:
               if (buf == A)
@@ -613,14 +702,14 @@ int llcloseReceiver(int port) {
 }
 
 int llcloseTransmitter(int port) {
-    conta = 1;
+    counter = 1;
     flag = 1;
     STOP = FALSE;
     int i = 0, res, ret;
 
-    while(conta < 4 && STOP == FALSE){
+    while(counter < (linkLayer.numTansmissions + 1) && STOP == FALSE){
         if(flag){
-            alarm(3);                 // activa alarme de 3s
+            alarm(linkLayer.timeout);
             flag=0;
 
             if ((res = write(port, disc_em, 5)) == -1) {
@@ -638,7 +727,7 @@ int llcloseTransmitter(int port) {
 
     alarm(0);
 
-    if (conta != 4) {
+    if (counter != (linkLayer.numTansmissions + 1)) {
         printf("DISC received.\n");
         alarm(0);
 
