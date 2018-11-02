@@ -130,7 +130,7 @@ int setLinkLayer(){
 
   }while (end != buf + strlen(buf) || !valid);
 
-  linkLayer.numTansmissions = n;
+  linkLayer.numTransmissions = n;
 
   printf("Maximum frame size: ");
 
@@ -198,18 +198,35 @@ int llopen(int port, int status) {
 
 int llopenReceiverHandler(int port){
     int res, ret, i = 0;
+    flag = 1;
+    counter = 1;
 
-    while (STOP == FALSE) {
-         if((ret = stateMachineSupervision(port,&i,set)) == -1)
+    signal(SIGALRM, timeout);
+
+    while (STOP == FALSE && counter < (linkLayer.numTransmissions + 1)) {
+        if(flag){
+            alarm(linkLayer.timeout);
+            flag=0;
+        }
+
+        if((ret = stateMachineSupervision(port,&i,set)) == -1)
             return -1;
     }
 
-    printf("SET received\n");
+    alarm(0);
+
+    if(counter < (linkLayer.numTransmissions + 1))
+        printf("SET received\n");
+    else{
+        printf("SET not received\n");
+        return -1;
+    }
 
     if ((res = write(port,ua_rec,5)) == -1) {
         printf("An error has occured.\n");
         return -1;
     }
+
 
     printf("UA sent, %d bytes written\n", res);
 
@@ -222,7 +239,7 @@ int llopenTransmitterHandler(int port){
 
     signal(SIGALRM, timeout);
 
-    while(counter < (linkLayer.numTansmissions + 1) && STOP == FALSE){
+    while(counter < (linkLayer.numTransmissions + 1) && STOP == FALSE){
         if(flag){
             alarm(linkLayer.timeout);
             flag=0;
@@ -239,7 +256,7 @@ int llopenTransmitterHandler(int port){
             return -1;
     }
 
-    if (counter != (linkLayer.numTansmissions + 1)) {
+    if (counter != (linkLayer.numTransmissions + 1)) {
         printf("UA received.\n");
     }
     else {
@@ -322,8 +339,15 @@ int llread(int port, unsigned char *data){
     int stopData = FALSE;
     int repeated = FALSE;
     STOP = FALSE;
+    flag = 1;
+    counter = 1;
 
-    while(STOP == FALSE) {
+    while(STOP == FALSE && counter < (linkLayer.numTransmissions + 1)) {
+        if(flag){
+            alarm(linkLayer.timeout);
+            flag=0;
+        }
+
         res = read(port, &buf, 1);
 
         if (res < 0) {
@@ -412,7 +436,14 @@ int llread(int port, unsigned char *data){
         }
     }
 
-    printf("Info received\n");
+    alarm(0);
+
+    if(counter < (linkLayer.numTransmissions + 1))
+        printf("Info received\n");
+    else{
+        printf("Info not received\n");
+        return -1;
+    }
 
     unsigned char * answer;
 
@@ -584,7 +615,7 @@ int llwrite(int port, unsigned char *buf, int *length) {
 
     *length = createFrame(buf, *length);
 
-    while(counter < (linkLayer.numTansmissions + 1) && (STOP == FALSE || repeated == TRUE)) {
+    while(counter < (linkLayer.numTransmissions + 1) && (STOP == FALSE || repeated == TRUE)) {
         repeated = FALSE;
 
         if(flag){
@@ -606,7 +637,7 @@ int llwrite(int port, unsigned char *buf, int *length) {
             repeated = TRUE;
     }
 
-    if (counter == (linkLayer.numTansmissions + 1)) {
+    if (counter == (linkLayer.numTransmissions + 1)) {
         printf("Exceeded maximum attempts.\n");
         return -1;
     }
@@ -706,14 +737,28 @@ int stateMachineInfoAnswer(int port, int *state) {
 int llcloseReceiver(int port) {
     int res, ret, i = 0;
     STOP = FALSE;
+    flag = 1;
+    counter = 1;
 
-    while (STOP == FALSE) {
+    while (STOP == FALSE && counter < (linkLayer.numTransmissions + 1)) {
+
+        if(flag){
+          flag = 0;
+          alarm(linkLayer.timeout);
+        }
 
         if((ret = stateMachineSupervision(port,&i,disc_em)) == -1)
         return -1;
     }
 
-    printf("DISC received\n");
+    alarm(0);
+
+    if(counter < (linkLayer.numTransmissions + 1))
+        printf("DISC received\n");
+    else{
+        printf("DISC not received\n");
+        return -1;
+    }
 
     if ((res = write(port,disc_rec,5)) == -1) {
         printf("An error has occured.\n");
@@ -723,13 +768,26 @@ int llcloseReceiver(int port) {
     printf("DISC sent, %d bytes written\n", res);
 
 
+    flag = 1;
+    counter = 1;
     STOP = FALSE;
-    while (STOP == FALSE) {
+    while (STOP == FALSE && (linkLayer.numTransmissions + 1)) {
+
+        if(flag){
+          flag = 0;
+          alarm(linkLayer.timeout);
+        }
+
         if((ret = stateMachineSupervision(port,&i,ua_em)) == -1)
             return -1;
     }
 
-    printf("UA received\n");
+    if(counter < (linkLayer.numTransmissions + 1))
+        printf("UA received\n");
+    else{
+        printf("UA not received\n");
+        return -1;
+    }
 
     if(tcsetattr(port,TCSANOW,&oldtio) == -1){
         perror("tcsetattr");
@@ -747,7 +805,7 @@ int llcloseTransmitter(int port) {
     STOP = FALSE;
     int i = 0, res, ret;
 
-    while(counter < (linkLayer.numTansmissions + 1) && STOP == FALSE){
+    while(counter < (linkLayer.numTransmissions + 1) && STOP == FALSE){
         if(flag){
             alarm(linkLayer.timeout);
             flag=0;
@@ -767,7 +825,7 @@ int llcloseTransmitter(int port) {
 
     alarm(0);
 
-    if (counter != (linkLayer.numTansmissions + 1)) {
+    if (counter != (linkLayer.numTransmissions + 1)) {
         printf("DISC received.\n");
         alarm(0);
 
