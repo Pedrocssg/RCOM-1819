@@ -35,7 +35,7 @@ int setLinkLayer(){
 
   linkLayer.sequenceNumber = I0_C;
 
-  printf("Baudrate (110, 150, 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600): ");
+  printf("Baudrate (110, 150, 300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400): ");
 
   do {
       valid = FALSE;
@@ -46,14 +46,51 @@ int setLinkLayer(){
 
       n = strtol(buf, &end, 10);
 
-      if(n == 110 || n == 150 || n == 300 || n == 1200 || n == 2400 || n == 4800 || n == 9600 || n == 19200 || n == 38400 || n == 57600 || n == 115200 || n == 230400 || n == 460800 || n == 921600)
+      if(n == 110 || n == 150 || n == 300 || n == 1200 || n == 2400 || n == 4800 || n == 9600 || n == 19200 || n == 38400 || n == 57600 || n == 115200 || n == 230400)
           valid = TRUE;
       else
           printf("Please enter a valid baudrate: ");
 
   }while (end != buf + strlen(buf) || !valid);
 
-  linkLayer.baudRate = n;
+  switch (n) {
+    case 110:
+        linkLayer.baudRate = B110;
+        break;
+    case 150:
+        linkLayer.baudRate = B150;
+        break;
+    case 300:
+        linkLayer.baudRate = B300;
+        break;
+    case 1200:
+        linkLayer.baudRate = B1200;
+        break;
+    case 2400:
+        linkLayer.baudRate = B2400;
+        break;
+    case 4800:
+        linkLayer.baudRate = B4800;
+        break;
+    case 9600:
+        linkLayer.baudRate = B9600;
+        break;
+    case 19200:
+        linkLayer.baudRate = B19200;
+        break;
+    case 38400:
+        linkLayer.baudRate = B38400;
+        break;
+    case 57600:
+        linkLayer.baudRate = B57600;
+        break;
+    case 115200:
+        linkLayer.baudRate = B115200;
+        break;
+    case 230400:
+        linkLayer.baudRate = B230400;
+        break;
+  }
 
   printf("Timeout (in seconds): ");
 
@@ -114,6 +151,7 @@ int setLinkLayer(){
   }while (end != buf + strlen(buf) || !valid);
 
   linkLayer.maxFrameSize = n;
+  printf("maxFrameSize:%d\n",linkLayer.maxFrameSize);
 
   return 0;
 }
@@ -216,7 +254,7 @@ int llopenTransmitterHandler(int port){
 
 
 int createFrame(unsigned char *frame, int packetSize) {
-    unsigned char packet[linkLayer.maxFrameSize - PACKET_HEADER];
+    unsigned char packet[linkLayer.maxFrameSize - FRAME_HEADER];
 
     size_t i;
     for (i = 0; i < packetSize; i++)
