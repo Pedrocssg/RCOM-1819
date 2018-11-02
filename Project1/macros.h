@@ -1,4 +1,3 @@
-#define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define TRANSMITTER 0
@@ -8,9 +7,9 @@
 #define TRUE 1
 #define LONG_SIZE 4
 #define BYTE_SIZE 255
-#define MAX_MSG_SIZE 0x00ff
-#define MAX_INFO_SIZE MAX_MSG_SIZE+4
-#define MAX_FRAME_SIZE MAX_INFO_SIZE+6
+#define PACKET_HEADER 5
+#define FRAME_HEADER 5
+#define HEADER (PACKET_HEADER+FRAME_HEADER)
 #define ESC 0x7d
 
 #define START 0

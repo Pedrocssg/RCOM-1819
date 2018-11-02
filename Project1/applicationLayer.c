@@ -10,13 +10,15 @@ int main(int argc, char const *argv[]) {
 
     ApplicationLayer appLayer;
 
+    setLinkLayer();
+
     if (argc == 2) {
         appLayer.status = RECEIVER;
-        printf("Receiver ready.\n");
+        printf("Receiver OK.\n");
     }
     else if (argc == 3) {
         appLayer.status = TRANSMITTER;
-        printf("Transmitter ready.\n");
+        printf("Transmitter OK.\n");
     }
     else {
         printf("Number of arguments insufficient\n");
@@ -54,7 +56,7 @@ int main(int argc, char const *argv[]) {
 
 
 int receiver(int port) {
-    unsigned char filedata[MAX_INFO_SIZE*2];
+    unsigned char filedata[(linkLayer.maxFrameSize - PACKET_HEADER)*2];
 
     int fileSize;
     char * fileName = (char *) malloc(0);
@@ -144,12 +146,12 @@ int transmitter(int port, const char *fileName) {
 
     close(file);
 
-    unsigned char boundFrame[MAX_MSG_SIZE];
-    int frameSize, packetSize;
-    packetSize = createBoundPacket(boundFrame, fileSize, fileName, START_FRAME);
-    frameSize = createFrame(boundFrame, packetSize);
 
-    if (llwrite(port, boundFrame, frameSize) == -1)
+    unsigned char boundPacket[linkLayer.maxFrameSize - HEADER];
+    int packetSize;
+    packetSize = createBoundPacket(boundPacket, fileSize, fileName, START_FRAME);
+
+    if (llwrite(port, boundPacket, &packetSize) == -1)
         return -1;
 
     if ((file = open(fileName, O_RDONLY)) == -1) {
@@ -158,23 +160,23 @@ int transmitter(int port, const char *fileName) {
     }
 
     int messageSize;
-    unsigned char message[MAX_MSG_SIZE];
-    unsigned char infoFrame[MAX_FRAME_SIZE*2];
-    do {
-        messageSize = read(file, message, MAX_MSG_SIZE);
-        packetSize = createInfoPacket(message, messageSize, infoFrame);
-        frameSize = createFrame(infoFrame, packetSize);
 
-        if (llwrite(port, infoFrame, frameSize) == -1)
+    unsigned char message[linkLayer.maxFrameSize - HEADER];
+    unsigned char infoPacket[linkLayer.maxFrameSize*2];
+    do {
+        messageSize = read(file, message, linkLayer.maxFrameSize - HEADER);
+        packetSize = createInfoPacket(message, messageSize, infoPacket);
+
+
+        if (llwrite(port, infoPacket, &packetSize) == -1)
             return -1;
-    } while (messageSize == MAX_MSG_SIZE);
+    } while (messageSize == linkLayer.maxFrameSize - HEADER);
 
     close(file);
 
-    packetSize = createBoundPacket(boundFrame, fileSize, fileName, END_FRAME);
-    frameSize = createFrame(boundFrame, packetSize);
+    packetSize = createBoundPacket(boundPacket, fileSize, fileName, END_FRAME);
 
-    if (llwrite(port, boundFrame, frameSize) == -1)
+    if (llwrite(port, boundPacket, &packetSize) == -1)
         return -1;
 
     return 0;

@@ -10,16 +10,17 @@
 #include <signal.h>
 #include "macros.h"
 
-
 typedef struct {
-    char port[20];
     int baudRate;
-    unsigned int sequenceNumber;
+    unsigned char sequenceNumber;
     unsigned int timeout;
     unsigned int numTansmissions;
-    char frame[MAX_FRAME_SIZE];
+    unsigned int maxFrameSize;
 } LinkLayer;
 
+LinkLayer linkLayer;
+
+int setLinkLayer();
 
 int llopen(int port, int status);
 int llopenReceiverHandler(int port);
@@ -28,7 +29,7 @@ int llopenTransmitterHandler(int port);
 int createFrame(unsigned char *frame, int packetSize);
 int byteStuffing(unsigned char* frame, int frameSize);
 
-int llwrite(int port, unsigned char *buf, int length);
+int llwrite(int port, unsigned char *buf, int *length);
 int stateMachineInfoAnswer(int port, int *state);
 
 int llread(int port, unsigned char *data);
