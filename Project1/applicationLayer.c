@@ -165,11 +165,8 @@ int transmitter(int port, const char *fileName) {
     unsigned char message[linkLayer.maxFrameSize - HEADER];
     unsigned char infoFrame[linkLayer.maxFrameSize*2];
     do {
-        printf("Frame - Header:%d\n", linkLayer.maxFrameSize - HEADER);
         messageSize = read(file, message, linkLayer.maxFrameSize - HEADER);
-        printf("Message size:%d\n", messageSize);
         packetSize = createInfoPacket(message, messageSize, infoFrame);
-        printf("Packet size:%d\n", packetSize);
         frameSize = createFrame(infoFrame, packetSize);
 
 
