@@ -841,6 +841,8 @@ int llcloseTransmitter(int port) {
         return -1;
     }
 
+    sleep(1);
+
     if (tcsetattr(port, TCSANOW, &oldtio) == -1) {
         perror("tcsetattr");
         return -1;

@@ -25,6 +25,10 @@ int main(int argc, char const *argv[]) {
         exit(-1);
     }
 
+    struct timeval start, stop;
+    double secs = 0;
+    gettimeofday(&start, NULL);
+
     if ((appLayer.fd = open(argv[1], O_RDWR | O_NOCTTY)) < 0) {
         perror(argv[1]);
         return -1;
@@ -42,6 +46,10 @@ int main(int argc, char const *argv[]) {
             return -1;
     }
 
+
+    gettimeofday(&stop, NULL);
+    secs = (double)(stop.tv_usec - start.tv_usec) / 1000000 + (double)(stop.tv_sec - start.tv_sec);
+
     if (appLayer.status == TRANSMITTER){
         if (llcloseTransmitter(appLayer.fd) == -1)
             return -1;
@@ -50,6 +58,8 @@ int main(int argc, char const *argv[]) {
         if (llcloseReceiver(appLayer.fd) == -1)
             return -1;
     }
+
+    printf("Total time: %fs\n",secs);
 
     return 0;
 }
