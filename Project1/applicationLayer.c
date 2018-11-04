@@ -25,10 +25,6 @@ int main(int argc, char const *argv[]) {
         exit(-1);
     }
 
-    struct timeval start, stop;
-    double secs = 0;
-    gettimeofday(&start, NULL);
-
     if ((appLayer.fd = open(argv[1], O_RDWR | O_NOCTTY)) < 0) {
         perror(argv[1]);
         return -1;
@@ -36,6 +32,10 @@ int main(int argc, char const *argv[]) {
 
     if (llopen(appLayer.fd, appLayer.status) == -1)
         return -1;
+
+    struct timeval start, stop;
+    double secs = 0;
+    gettimeofday(&start, NULL);
 
     if (appLayer.status == TRANSMITTER){
         if (transmitter(appLayer.fd, argv[2]) == -1)
