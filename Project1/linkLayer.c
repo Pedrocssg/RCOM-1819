@@ -771,7 +771,7 @@ int llcloseReceiver(int port) {
     flag = 1;
     counter = 1;
     STOP = FALSE;
-    while (STOP == FALSE && (linkLayer.numTransmissions + 1)) {
+    while (STOP == FALSE && counter < (linkLayer.numTransmissions + 1)) {
 
         if(flag){
           flag = 0;
