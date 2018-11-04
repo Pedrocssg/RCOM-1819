@@ -46,6 +46,10 @@ int main(int argc, char const *argv[]) {
             return -1;
     }
 
+
+    gettimeofday(&stop, NULL);
+    secs = (double)(stop.tv_usec - start.tv_usec) / 1000000 + (double)(stop.tv_sec - start.tv_sec);
+
     if (appLayer.status == TRANSMITTER){
         if (llcloseTransmitter(appLayer.fd) == -1)
             return -1;
@@ -55,10 +59,7 @@ int main(int argc, char const *argv[]) {
             return -1;
     }
 
-
-    gettimeofday(&stop, NULL);
-    secs = (double)(stop.tv_usec - start.tv_usec) / 1000000 + (double)(stop.tv_sec - start.tv_sec);
-    printf("time taken %f\n",secs);
+    printf("Total time: %fs\n",secs);
 
     return 0;
 }
