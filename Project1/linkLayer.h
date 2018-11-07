@@ -17,6 +17,7 @@ typedef struct {
     unsigned int numTransmissions;
     unsigned int maxFrameSize;
     int randomError;
+    int errorProb;
 } LinkLayer;
 
 LinkLayer linkLayer;
