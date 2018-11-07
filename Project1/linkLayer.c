@@ -150,6 +150,26 @@ int setLinkLayer(){
 
   }while (end != buf + strlen(buf) || !valid);
 
+  printf("Random error (y/n): ");
+
+  do {
+      valid = FALSE;
+      if (!fgets(buf, sizeof buf, stdin))
+          break;
+
+      if(buf == 'y'){
+          valid = TRUE;
+          linkLayer.randomError = 1;
+      }
+      else if(buf == 'n'){
+          valid = TRUE;
+          linkLayer.randomError = 0;
+      }
+      else
+          printf("Please enter a valid maximum frame size value: ");
+
+  }while (end != buf + strlen(buf) || !valid);
+
   linkLayer.maxFrameSize = n;
   printf("maxFrameSize:%d\n",linkLayer.maxFrameSize);
 
@@ -328,6 +348,10 @@ int byteStuffing(unsigned char* frame, int frameSize) {
     return newSize;
 }
 
+unsigned char randomError() {
+    return ((rand()%10) == 1) ? 1 : 0;
+}
+
 int llwrite(int port, unsigned char *buf, int *length) {
     counter = 1;
     flag = 1;
@@ -344,9 +368,18 @@ int llwrite(int port, unsigned char *buf, int *length) {
             alarm(linkLayer.timeout);
             flag=0;
 
+            if (TRUE) {
+                int oldBcc = buf[*length - 2];
+                buf[*length - 2] += randomError();
+            }
+
             if ((res = write(port, buf, *length)) == -1) {
                 printf("An error has occured writing the message.\n");
                 return -1;
+            }
+
+            if (TRUE) {
+                buf[*length - 2] = oldBcc;
             }
 
             printf("Info sent, %d bytes written.\n", res);
