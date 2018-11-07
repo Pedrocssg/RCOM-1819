@@ -10,8 +10,6 @@ int main(int argc, char const *argv[]) {
 
     ApplicationLayer appLayer;
 
-    setLinkLayer();
-
     if (argc == 2) {
         appLayer.status = RECEIVER;
         printf("Receiver OK.\n");
@@ -24,6 +22,8 @@ int main(int argc, char const *argv[]) {
         printf("Number of arguments insufficient\n");
         exit(-1);
     }
+
+    setLinkLayer(appLayer.status);
 
     if ((appLayer.fd = open(argv[1], O_RDWR | O_NOCTTY)) < 0) {
         perror(argv[1]);

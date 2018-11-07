@@ -25,7 +25,7 @@ void timeout() {
     counter++;
 }
 
-int setLinkLayer(){
+int setLinkLayer(int status){
 
   char *end;
   char buf[255];
@@ -126,7 +126,7 @@ int setLinkLayer(){
        if(n > 0)
           valid = TRUE;
        else
-          printf("Please enter a valid retransmission value: ");
+          printf("Please enter a valid transmission value: ");
 
   }while (end != buf + strlen(buf) || !valid);
 
@@ -150,27 +150,29 @@ int setLinkLayer(){
 
   }while (end != buf + strlen(buf) || !valid);
 
-  printf("Random error (y/n): ");
-
-  do {
-      valid = FALSE;
-      *buf = (unsigned char) fgetc(stdin);
-
-      if(*buf == 'y'){
-          valid = TRUE;
-          linkLayer.randomError = 1;
-      }
-      else if(*buf == 'n'){
-          valid = TRUE;
-          linkLayer.randomError = 0;
-      }
-      else
-          printf("Please enter a valid maximum frame size value: ");
-
-  }while (!valid);
-
   linkLayer.maxFrameSize = n;
   printf("maxFrameSize:%d\n",linkLayer.maxFrameSize);
+
+  if (status == TRANSMITTER) {
+      printf("Random error (y/n): ");
+
+      do {
+          valid = FALSE;
+          *buf = (unsigned char) fgetc(stdin);
+
+          if(*buf == 'y'){
+              valid = TRUE;
+              linkLayer.randomError = 1;
+          }
+          else if(*buf == 'n'){
+              valid = TRUE;
+              linkLayer.randomError = 0;
+          }
+          else
+              printf("Please enter a valid maximum frame size value: ");
+
+      }while (!valid);
+  }
 
   return 0;
 }
