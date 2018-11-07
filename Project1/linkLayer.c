@@ -156,6 +156,7 @@ int setLinkLayer(){
   return 0;
 }
 
+
 int llopen(int port, int status) {
     if ( tcgetattr(port, &oldtio) == -1) {
       perror("tcgetattr");
@@ -195,7 +196,6 @@ int llopen(int port, int status) {
     return 0;
 }
 
-
 int llopenReceiverHandler(int port){
     int res, ret, i = 0;
     flag = 1;
@@ -232,7 +232,6 @@ int llopenReceiverHandler(int port){
 
     return 0;
 }
-
 
 int llopenTransmitterHandler(int port){
     int i = 0, res, ret;
@@ -294,7 +293,6 @@ int createFrame(unsigned char *frame, int packetSize) {
     return frameSize;
 }
 
-
 int byteStuffing(unsigned char* frame, int frameSize) {
     unsigned char tempFrame[frameSize*2];
     int newSize = frameSize;
@@ -328,6 +326,134 @@ int byteStuffing(unsigned char* frame, int frameSize) {
     }
 
     return newSize;
+}
+
+int llwrite(int port, unsigned char *buf, int *length) {
+    counter = 1;
+    flag = 1;
+    STOP = FALSE;
+    int repeated = FALSE;
+    int i = 0, res, ret;
+
+    *length = createFrame(buf, *length);
+
+    while(counter < (linkLayer.numTransmissions + 1) && (STOP == FALSE || repeated == TRUE)) {
+        repeated = FALSE;
+
+        if(flag){
+            alarm(linkLayer.timeout);
+            flag=0;
+
+            if ((res = write(port, buf, *length)) == -1) {
+                printf("An error has occured writing the message.\n");
+                return -1;
+            }
+
+            printf("Info sent, %d bytes written.\n", res);
+        }
+
+        ret = stateMachineInfoAnswer(port, &i);
+        if (ret == -1)
+            exit(-1);
+        else if (ret == -2)
+            repeated = TRUE;
+    }
+
+    if (counter == (linkLayer.numTransmissions + 1)) {
+        printf("Exceeded maximum attempts.\n");
+        return -1;
+    }
+
+    alarm(0);
+
+    linkLayer.sequenceNumber ^= I1_C;
+
+    return 0;
+}
+
+int stateMachineInfoAnswer(int port, int *state) {
+    int res;
+    unsigned char buf;
+    static int c;
+
+    res = read(port, &buf, 1);
+
+    if (res < 0) {
+        printf("There was an error while reading the buffer.\n");
+        return -1;
+    }
+    else if (res == 0) {
+        return 0;
+    }
+    else {
+        switch (*state) {
+          case START:
+              if (buf == FLAG)
+                  *state = FLAG_RCV;
+              break;
+          case FLAG_RCV:
+              if (buf == A)
+                  *state = A_RCV;
+              else if (buf == FLAG){
+                  printf("Nothing received\n");
+              }
+              else{
+                  *state = START;
+                  printf("Nothing received\n");
+              }
+              break;
+          case A_RCV:
+              if (buf == FLAG) {
+                  *state = FLAG_RCV;
+                  printf("Nothing received\n");
+              }
+              else if (buf == RR_C_N0 || buf == RR_C_N1 || buf == REJ_C_N0 || buf == REJ_C_N1) {
+                  *state = C_RCV;
+                  c = buf;
+              }
+              else{
+                  *state = START;
+                  printf("Nothing received\n");
+              }
+              break;
+          case C_RCV:
+              if (buf == FLAG) {
+                  *state = FLAG_RCV;
+                  printf("Nothing received\n");
+              }
+              else if ((buf == RR0_BCC && (A^c) == RR0_BCC) ||
+                       (buf == RR1_BCC && (A^c) == RR1_BCC) ||
+                       (buf == REJ0_BCC && (A^c) == REJ0_BCC) ||
+                       (buf == REJ1_BCC && (A^c) == REJ1_BCC))
+                  *state = BCC_OK;
+              else{
+                  *state = START;
+                  printf("Nothing received\n");
+              }
+              break;
+          case BCC_OK:
+              if (buf == FLAG && (c == RR_C_N0 || c == RR_C_N1)){
+                  STOP = TRUE;
+                  printf("Rr received\n");
+              }
+              else if (buf == FLAG && (c == REJ_C_N0 || c == REJ_C_N1)){
+                  *state = START;
+                  printf("Rej received\n");
+                  return -2;
+              }
+              else{
+                  *state = START;
+                  printf("Nothing received\n");
+              }
+              break;
+          default:
+              printf("There was an error or the message is not valid.\n");
+              return -1;
+              break;
+        }
+    }
+
+    return 0;
 }
 
 
@@ -605,134 +731,6 @@ int processInfoFrame(int port, unsigned char * data, unsigned char c){
   }
 }
 
-
-int llwrite(int port, unsigned char *buf, int *length) {
-    counter = 1;
-    flag = 1;
-    STOP = FALSE;
-    int repeated = FALSE;
-    int i = 0, res, ret;
-
-    *length = createFrame(buf, *length);
-
-    while(counter < (linkLayer.numTransmissions + 1) && (STOP == FALSE || repeated == TRUE)) {
-        repeated = FALSE;
-
-        if(flag){
-            alarm(linkLayer.timeout);
-            flag=0;
-
-            if ((res = write(port, buf, *length)) == -1) {
-                printf("An error has occured writing the message.\n");
-                return -1;
-            }
-
-            printf("Info sent, %d bytes written.\n", res);
-        }
-
-        ret = stateMachineInfoAnswer(port, &i);
-        if (ret == -1)
-            exit(-1);
-        else if (ret == -2)
-            repeated = TRUE;
-    }
-
-    if (counter == (linkLayer.numTransmissions + 1)) {
-        printf("Exceeded maximum attempts.\n");
-        return -1;
-    }
-
-    alarm(0);
-
-    linkLayer.sequenceNumber ^= I1_C;
-
-    return 0;
-}
-
-int stateMachineInfoAnswer(int port, int *state) {
-    int res;
-    unsigned char buf;
-    static int c;
-
-    res = read(port, &buf, 1);
-
-    if (res < 0) {
-        printf("There was an error while reading the buffer.\n");
-        return -1;
-    }
-    else if (res == 0) {
-        return 0;
-    }
-    else {
-        switch (*state) {
-          case START:
-              if (buf == FLAG)
-                  *state = FLAG_RCV;
-              break;
-          case FLAG_RCV:
-              if (buf == A)
-                  *state = A_RCV;
-              else if (buf == FLAG){
-                  printf("Nothing received\n");
-              }
-              else{
-                  *state = START;
-                  printf("Nothing received\n");
-              }
-              break;
-          case A_RCV:
-              if (buf == FLAG) {
-                  *state = FLAG_RCV;
-                  printf("Nothing received\n");
-              }
-              else if (buf == RR_C_N0 || buf == RR_C_N1 || buf == REJ_C_N0 || buf == REJ_C_N1) {
-                  *state = C_RCV;
-                  c = buf;
-              }
-              else{
-                  *state = START;
-                  printf("Nothing received\n");
-              }
-              break;
-          case C_RCV:
-              if (buf == FLAG) {
-                  *state = FLAG_RCV;
-                  printf("Nothing received\n");
-              }
-              else if ((buf == RR0_BCC && (A^c) == RR0_BCC) ||
-                       (buf == RR1_BCC && (A^c) == RR1_BCC) ||
-                       (buf == REJ0_BCC && (A^c) == REJ0_BCC) ||
-                       (buf == REJ1_BCC && (A^c) == REJ1_BCC))
-                  *state = BCC_OK;
-              else{
-                  *state = START;
-                  printf("Nothing received\n");
-              }
-              break;
-          case BCC_OK:
-              if (buf == FLAG && (c == RR_C_N0 || c == RR_C_N1)){
-                  STOP = TRUE;
-                  printf("Rr received\n");
-              }
-              else if (buf == FLAG && (c == REJ_C_N0 || c == REJ_C_N1)){
-                  *state = START;
-                  printf("Rej received\n");
-                  return -2;
-              }
-              else{
-                  *state = START;
-                  printf("Nothing received\n");
-              }
-              break;
-          default:
-              printf("There was an error or the message is not valid.\n");
-              return -1;
-              break;
-        }
-    }
-
-    return 0;
-}
 
 int llcloseReceiver(int port) {
     int res, ret, i = 0;
