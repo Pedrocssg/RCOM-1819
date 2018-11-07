@@ -112,7 +112,7 @@ int setLinkLayer(){
 
   linkLayer.timeout = n;
 
-  printf("Retransmissions: ");
+  printf("Transmissions: ");
 
   do {
        valid = FALSE;
