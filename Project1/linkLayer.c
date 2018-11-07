@@ -154,21 +154,20 @@ int setLinkLayer(){
 
   do {
       valid = FALSE;
-      if (!fgets(buf, sizeof buf, stdin))
-          break;
+      *buf = (unsigned char) fgetc(stdin);
 
-      if(buf == 'y'){
+      if(*buf == 'y'){
           valid = TRUE;
           linkLayer.randomError = 1;
       }
-      else if(buf == 'n'){
+      else if(*buf == 'n'){
           valid = TRUE;
           linkLayer.randomError = 0;
       }
       else
           printf("Please enter a valid maximum frame size value: ");
 
-  }while (end != buf + strlen(buf) || !valid);
+  }while (!valid);
 
   linkLayer.maxFrameSize = n;
   printf("maxFrameSize:%d\n",linkLayer.maxFrameSize);
@@ -368,8 +367,9 @@ int llwrite(int port, unsigned char *buf, int *length) {
             alarm(linkLayer.timeout);
             flag=0;
 
-            if (TRUE) {
-                int oldBcc = buf[*length - 2];
+            int oldBcc;
+            if (linkLayer.randomError) {
+                oldBcc = buf[*length - 2];
                 buf[*length - 2] += randomError();
             }
 
@@ -378,7 +378,7 @@ int llwrite(int port, unsigned char *buf, int *length) {
                 return -1;
             }
 
-            if (TRUE) {
+            if (linkLayer.randomError) {
                 buf[*length - 2] = oldBcc;
             }
 
