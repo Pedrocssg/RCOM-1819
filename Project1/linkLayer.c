@@ -156,19 +156,22 @@ int setLinkLayer(int status){
       printf("Random error (y/n): ");
 
       do {
-          valid = FALSE;
-          *buf = (unsigned char) fgetc(stdin);
+           valid = FALSE;
+           if (!fgets(buf, sizeof buf, stdin))
+              break;
 
-          if(*buf == 'y'){
-              valid = TRUE;
-              linkLayer.randomError = 1;
-          }
-          else if(*buf == 'n'){
-              valid = TRUE;
-              linkLayer.randomError = 0;
-          }
-          else
-              printf("Please enter a y or n: ");
+           buf[strlen(buf) - 1] = 0;
+
+           if(*buf == 'y' || *buf == 'Y'){
+               valid = TRUE;
+               linkLayer.randomError = 1;
+           }
+           else if(*buf == 'n' || *buf == 'N'){
+               valid = TRUE;
+               linkLayer.randomError = 0;
+           }
+           else
+               printf("Please enter a y or n: ");
 
       }while (!valid);
 
@@ -183,7 +186,7 @@ int setLinkLayer(int status){
 
              n = strtol(buf, &end, 10);
 
-             if(n > 0)
+             if(n > 1)
                 valid = TRUE;
              else
                 printf("Please enter a valid probability value: ");
@@ -191,8 +194,6 @@ int setLinkLayer(int status){
         }while (end != buf + strlen(buf) || !valid);
 
         linkLayer.errorProb = n;
-
-
       }
   }
 
