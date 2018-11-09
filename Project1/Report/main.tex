@@ -1,0 +1,61 @@
+\documentclass[12pt, letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+
+\graphicspath{{images/}}
+
+\title{
+    \includegraphics[scale=0.5]{FEUP.png}\\
+    \vspace{40pt}
+    \huge\textbf{RCOM}\\
+    \vspace{20pt}
+    Relatório 1\\
+    \vspace{20pt}
+}
+
+\author{
+    Cláudio Lemos
+    \and
+    Duarte Oliveira
+    \and
+    Pedro Gonçalves
+}
+\date{\today}
+
+
+\begin{document}
+
+\maketitle
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introdução}
+\input{chapters/Introduction.tex}
+
+\section{Arquitetura}
+\input{chapters/Architecture.tex}
+
+\section{Estrutura do código}
+\input{chapters/CodeStructure.tex}
+
+\section{Casos de uso principais}
+\input{chapters/MainCases.tex}
+
+\section{Protocolo de ligação lógica}
+\input{chapters/LLProtocol.tex}
+
+\section{Protocolo de aplicação}
+\input{chapters/AppProtocol.tex}
+
+\section{Validação}
+\input{chapters/Validation.tex}
+
+\section{Eficiência do protocolo de ligação de dados}
+\input{chapters/Efficiency.tex}
+
+\section{Conclusões}
+\input{chapters/Conclusion.tex}
+
+\end{document}
