@@ -151,27 +151,50 @@ int setLinkLayer(int status){
   }while (end != buf + strlen(buf) || !valid);
 
   linkLayer.maxFrameSize = n;
-  printf("maxFrameSize:%d\n",linkLayer.maxFrameSize);
 
   if (status == TRANSMITTER) {
       printf("Random error (y/n): ");
 
       do {
-          valid = FALSE;
-          *buf = (unsigned char) fgetc(stdin);
+           valid = FALSE;
+           if (!fgets(buf, sizeof buf, stdin))
+              break;
 
-          if(*buf == 'y'){
-              valid = TRUE;
-              linkLayer.randomError = 1;
-          }
-          else if(*buf == 'n'){
-              valid = TRUE;
-              linkLayer.randomError = 0;
-          }
-          else
-              printf("Please enter a valid maximum frame size value: ");
+           buf[strlen(buf) - 1] = 0;
+
+           if(*buf == 'y' || *buf == 'Y'){
+               valid = TRUE;
+               linkLayer.randomError = 1;
+           }
+           else if(*buf == 'n' || *buf == 'N'){
+               valid = TRUE;
+               linkLayer.randomError = 0;
+           }
+           else
+               printf("Please enter a y or n: ");
 
       }while (!valid);
+
+      if(linkLayer.randomError == TRUE){
+        printf("Random error probability (1 in x times): ");
+        do {
+             valid = FALSE;
+             if (!fgets(buf, sizeof buf, stdin))
+                break;
+
+             buf[strlen(buf) - 1] = 0;
+
+             n = strtol(buf, &end, 10);
+
+             if(n > 1)
+                valid = TRUE;
+             else
+                printf("Please enter a valid probability value: ");
+
+        }while (end != buf + strlen(buf) || !valid);
+
+        linkLayer.errorProb = n;
+      }
   }
 
   return 0;
@@ -350,7 +373,7 @@ int byteStuffing(unsigned char* frame, int frameSize) {
 }
 
 unsigned char randomError() {
-    return ((rand()%10) == 1) ? 1 : 0;
+    return ((rand()%linkLayer.errorProb) == 1) ? 1 : 0;
 }
 
 int llwrite(int port, unsigned char *buf, int *length) {

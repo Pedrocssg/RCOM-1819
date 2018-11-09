@@ -17,6 +17,7 @@ typedef struct {
     unsigned int numTransmissions;
     unsigned int maxFrameSize;
     int randomError;
+    int errorProb;
 } LinkLayer;
 
 LinkLayer linkLayer;
@@ -29,6 +30,7 @@ int llopenTransmitterHandler(int port);
 
 int createFrame(unsigned char *frame, int packetSize);
 int byteStuffing(unsigned char* frame, int frameSize);
+unsigned char randomError();
 int llwrite(int port, unsigned char *buf, int *length);
 int stateMachineInfoAnswer(int port, int *state);
 
