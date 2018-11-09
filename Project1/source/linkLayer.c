@@ -197,6 +197,51 @@ int setLinkLayer(int status){
       }
   }
 
+  if (status == RECEIVER) {
+      printf("Delay (y/n): ");
+
+      do {
+           valid = FALSE;
+           if (!fgets(buf, sizeof buf, stdin))
+              break;
+
+           buf[strlen(buf) - 1] = 0;
+
+           if(*buf == 'y' || *buf == 'Y'){
+               valid = TRUE;
+               linkLayer.delay = 1;
+           }
+           else if(*buf == 'n' || *buf == 'N'){
+               valid = TRUE;
+               linkLayer.delay = 0;
+           }
+           else
+               printf("Please enter a y or n: ");
+
+      }while (!valid);
+
+      if(linkLayer.delay == TRUE){
+        printf("Delay time (in seconds): ");
+        do {
+             valid = FALSE;
+             if (!fgets(buf, sizeof buf, stdin))
+                break;
+
+             buf[strlen(buf) - 1] = 0;
+
+             n = strtol(buf, &end, 10);
+
+             if(n >= 1 && n < linkLayer.timeout)
+                valid = TRUE;
+             else
+                printf("Please enter a valid time: ");
+
+        }while (end != buf + strlen(buf) || !valid);
+
+        linkLayer.delayTime = n;
+      }
+  }
+
   return 0;
 }
 
@@ -373,7 +418,7 @@ int byteStuffing(unsigned char* frame, int frameSize) {
 }
 
 unsigned char randomError() {
-    return ((rand()%linkLayer.errorProb) == 1) ? 1 : 0;
+    return ((rand()%linkLayer.errorProb) == 0) ? 1 : 0;
 }
 
 int llwrite(int port, unsigned char *buf, int *length) {
@@ -574,6 +619,8 @@ int llread(int port, unsigned char *data){
                       state=START;
                   break;
               case BCC_OK:
+                  if(linkLayer.delay == TRUE)
+                    sleep(linkLayer.delayTime)
                   if (buf == START_FRAME || buf == END_FRAME){
                     size = processBoundFrame(port, data, buf);
                     if(size > 0) {

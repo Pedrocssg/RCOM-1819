@@ -18,6 +18,8 @@ typedef struct {
     unsigned int maxFrameSize;
     int randomError;
     int errorProb;
+    int delay;
+    int delayTime;
 } LinkLayer;
 
 LinkLayer linkLayer;
