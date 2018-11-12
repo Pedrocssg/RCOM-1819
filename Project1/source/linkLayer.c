@@ -153,7 +153,7 @@ int setLinkLayer(int status){
   linkLayer.maxFrameSize = n;
 
   if (status == TRANSMITTER) {
-      printf("Random error (y/n): ");
+      printf("Random error ( BCC1 - 1 / BCC2 - 2 / no error - n): ");
 
       do {
            valid = FALSE;
@@ -162,20 +162,24 @@ int setLinkLayer(int status){
 
            buf[strlen(buf) - 1] = 0;
 
-           if(*buf == 'y' || *buf == 'Y'){
+           if(*buf == '1'){
                valid = TRUE;
                linkLayer.randomError = 1;
+           }
+           else if(*buf == '2'){
+               valid = TRUE;
+               linkLayer.randomError = 2;
            }
            else if(*buf == 'n' || *buf == 'N'){
                valid = TRUE;
                linkLayer.randomError = 0;
            }
            else
-               printf("Please enter a y or n: ");
+               printf("Please enter 1, 2 or n: ");
 
       }while (!valid);
 
-      if(linkLayer.randomError == TRUE){
+      if(linkLayer.randomError == 1 || linkLayer.randomError == 2){
         printf("Random error probability (1 in x times): ");
         do {
              valid = FALSE;
@@ -437,9 +441,13 @@ int llwrite(int port, unsigned char *buf, int *length) {
             alarm(linkLayer.timeout);
             flag=0;
 
-            int oldBcc;
-            if (linkLayer.randomError) {
-                oldBcc = buf[*length - 2];
+            int oldBcc1, oldBcc2;
+            if (linkLayer.randomError == 1) {
+                oldBcc1 = buf[3];
+                buf[3] += randomError();
+            }
+            else if (linkLayer.randomError == 2) {
+                oldBcc2 = buf[*length - 2];
                 buf[*length - 2] += randomError();
             }
 
@@ -448,9 +456,10 @@ int llwrite(int port, unsigned char *buf, int *length) {
                 return -1;
             }
 
-            if (linkLayer.randomError) {
-                buf[*length - 2] = oldBcc;
-            }
+            if (linkLayer.randomError == 1)
+                buf[3] = oldBcc1;
+            else if(linkLayer.randomError == 2)
+                buf[*length - 2] = oldBcc2;
 
             printf("Info sent, %d bytes written.\n", res);
         }
@@ -542,6 +551,8 @@ int stateMachineInfoAnswer(int port, int *state) {
               else if (buf == FLAG && (c == REJ_C_N0 || c == REJ_C_N1)){
                   *state = START;
                   printf("Rej received\n");
+                  alarm(0);
+                  flag = 1;
                   return -2;
               }
               else{
@@ -627,6 +638,7 @@ int llread(int port, unsigned char *data){
                         if(REJ == TRUE && repeated == TRUE)
                             repeated = FALSE;
 
+                        REJ = FALSE;
                         STOP = TRUE;
                         if(buf == END_FRAME)
                           stopData = TRUE;
