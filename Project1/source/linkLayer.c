@@ -620,7 +620,7 @@ int llread(int port, unsigned char *data){
                   break;
               case BCC_OK:
                   if(linkLayer.delay == TRUE)
-                    sleep(linkLayer.delayTime)
+                    sleep(linkLayer.delayTime);
                   if (buf == START_FRAME || buf == END_FRAME){
                     size = processBoundFrame(port, data, buf);
                     if(size > 0) {
