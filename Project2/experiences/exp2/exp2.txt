@@ -1,0 +1,5 @@
+Q1: How to configure vlany0?
+
+
+Q2: How many broadcast domains are there? How can you conclude it from
+the logs?

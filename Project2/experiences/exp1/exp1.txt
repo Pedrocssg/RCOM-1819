@@ -1,0 +1,38 @@
+Experiencia 1:
+
+tux1:
+  IP - 172.16.50.1
+  MAC- 00:21:5a:5a:79:c0
+
+tux2:
+  IP - 172.16.50.2
+  MAC - 00:21:5a:61:2f:d6
+
+
+
+Q1: What are the ARP packets and what are they used for?
+Obtain MAC address associated to a given IP address.
+
+Q2: What are the MAC and IP addresses of ARP packets and why?
+
+
+Q3: What packets does the ping command generate?
+Request and reply packets following ICMP protocol.
+
+Q4: What are the MAC and IP addresses of the ping packets?
+IP and MAC addresses from source.
+IP and MAC addresses from destination.
+
+Q5: How to determine if a receiving Ethernet frame is ARP, IP, ICMP?
+Ethernet header:
+  IP - 0x0800
+  ARP - 0x0806
+IP header (Ethernet header IP):
+  ICMP - 1
+
+Q6: How to determine the length of a receiving frame?
+The length of the frame is obtained after full decoding of the frame.
+
+Q7: What is the loopback interface and why is it important?
+The loopback interface is used to identify the device.
+Best way to identify a device because loopback address never changes.
