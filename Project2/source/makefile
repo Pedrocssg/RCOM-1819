@@ -1,5 +1,5 @@
-gs:	clientTCP.c getip.c
-		gcc -Wall -o download clientTCP.c getip.c
+gs:	clientFTP.c getip.c
+		gcc -Wall -o download clientFTP.c getip.c
 
 clean:
 		rm -f download
