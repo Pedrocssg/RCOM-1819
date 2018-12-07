@@ -1,5 +1,5 @@
-#ifndef __GETIP_H
-#define __GETIP_H
+#ifndef __URL_H
+#define __URL_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,7 +9,16 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include "FTP.h"
 
+typedef struct {
+    char user[255];
+    char password[255];
+    char host[255];
+    char path[255];
+    char ip[255];
+    int port;
+} URL;
 
 typedef struct {
   char *h_name;	//Official name of the host.
@@ -22,6 +31,7 @@ typedef struct {
 
 #define h_addr h_addr_list[0]	//The first address in h_addr_list.
 
-void getIp(char * ip, char * host);
+int parseURL(char * urlString, URL * url);
+int getIP(URL * url);
 
 #endif

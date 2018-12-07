@@ -1,3 +1,6 @@
+#ifndef __FTP_H
+#define __FTP_H
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -9,10 +12,15 @@
 #include <netdb.h>
 #include <string.h>
 #include <strings.h>
-#include "getip.h"
+#include "URL.h"
 
-#define SERVER_PORT 6000
-#define SERVER_ADDR "192.168.28.96"
+#define FTP_PORT 21
 
-int parseFTPrequest(char *request, char *user, char *password, char *host, char *url);
 int connectSocket();
+int readFTP(char * string, size_t size);
+int sendFTP(char * string, size_t size);
+int loginFTP();
+int connectFTP();
+
+
+#endif
