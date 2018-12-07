@@ -1,5 +1,20 @@
 Q1: What routes are there in the tuxes? What are their meaning?
-
+tux1:
+    Dest           Gateway          Genmask          Flags    Metric    Ref    Use IFace
+    0.0.0.0        172.16.50.254    0.0.0.0          UG       0         0      0   eth0
+    172.16.50.0    0.0.0.0          255.255.255.0    U        0         0      0   eth0
+tux2:
+    Dest           Gateway          Genmask          Flags    Metric    Ref    Use IFace
+    0.0.0.0        172.16.51.254    0.0.0.0          UG       0         0      0   eth0
+    172.16.50.0    172.16.51.253    255.255.255.0    UG       0         0      0   eth0
+    172.16.51.0    0.0.0.0          255.255.255.0    U        0         0      0   eth0
+tux4:
+    Dest           Gateway          Genmask          Flags    Metric    Ref    Use IFace
+    0.0.0.0        172.16.51.254    0.0.0.0          UG       0         0      0   eth1
+    172.16.50.0    0.0.0.0          255.255.255.0    U        0         0      0   eth0
+    172.16.51.0    0.0.0.0          255.255.255.0    U        0         0      0   eth1
+It means that tux1 is connected to tux4 and tux4 is connected to tux2.
+And because tux4 is a router, tux2 can communicate to tux1 through tux4.
 
 Q2: What information does an entry of the forwarding table contain?
 
