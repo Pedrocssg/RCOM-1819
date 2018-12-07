@@ -1,5 +1,19 @@
+Experience 2:
+tux2: IPaddr 172.16.41.1
+      00:1f:29:d7:45:c4
+
 Q1: How to configure vlany0?
+Creating vlan40:
+configure terminal
+vlan 40
+end
 
+configuring port 1:
+configure terminal
+interface fastethernet 0/1
+switchport mode access
+switchport access vlan y0
+end
 
-Q2: How many broadcast domains are there? How can you conclude it from
-the logs?
+Q2: How many broadcast domains are there? How can you conclude it from the logs?
+1? 255

@@ -1,4 +1,4 @@
-Experiencia 1:
+Experience 1:
 
 tux1:
   IP - 172.16.50.1
@@ -14,7 +14,7 @@ Q1: What are the ARP packets and what are they used for?
 Obtain MAC address associated to a given IP address.
 
 Q2: What are the MAC and IP addresses of ARP packets and why?
-
+PC identification
 
 Q3: What packets does the ping command generate?
 Request and reply packets following ICMP protocol.
