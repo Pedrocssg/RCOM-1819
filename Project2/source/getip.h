@@ -1,3 +1,6 @@
+#ifndef __GETIP_H
+#define __GETIP_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -5,6 +8,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <string.h>
 
 
 typedef struct {
@@ -18,4 +22,6 @@ typedef struct {
 
 #define h_addr h_addr_list[0]	//The first address in h_addr_list.
 
-int getIp(char* host);
+void getIp(char * ip, char * host);
+
+#endif

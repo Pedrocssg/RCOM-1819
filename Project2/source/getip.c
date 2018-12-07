@@ -1,6 +1,6 @@
 #include "getip.h"
 
-int getIp(char* host) {
+void getIp(char * ip, char * host) {
 	struct hostent *h;
 
   if ((h=gethostbyname(host)) == NULL) {
@@ -8,8 +8,5 @@ int getIp(char* host) {
     exit(1);
   }
 
-  printf("Host name  : %s\n", h->h_name);
-  printf("IP Address : %s\n",inet_ntoa(*((struct in_addr *)h->h_addr)));
-
-  return 0;
+  strcpy(ip, inet_ntoa(*((struct in_addr *)h->h_addr)));
 }
