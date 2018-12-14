@@ -11,12 +11,15 @@
 #include <string.h>
 #include "FTP.h"
 
+#define URL_SIZE 255
+
 typedef struct {
-    char user[255];
-    char password[255];
-    char host[255];
-    char path[255];
-    char ip[255];
+    char user[URL_SIZE];
+    char password[URL_SIZE];
+    char host[URL_SIZE];
+    char path[URL_SIZE];
+    char ip[URL_SIZE];
+    char filename[URL_SIZE];
     int port;
 } URL;
 
@@ -33,5 +36,6 @@ typedef struct {
 
 int parseURL(char * urlString, URL * url);
 int getIP(URL * url);
+int parseFilename(URL * url);
 
 #endif

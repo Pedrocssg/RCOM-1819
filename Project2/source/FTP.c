@@ -3,10 +3,11 @@
 URL * url;
 int controlSocket;
 int dataSocket;
+char string[1024];
 
 int main(int argc, char** argv){
 	if (argc != 2) {
-			printf("Please insert a valid number of arguments: './download ftp://user:password@host/filepath'\n");
+			printf("Please insert a valid url: './download ftp://(user:password@)host/filepath'\n");
 			exit(1);
 	}
 
@@ -35,45 +36,37 @@ int connectFTP(){
 
 	dataSocket = 0;
 
-	char string[1024];
-	readFTP(string, sizeof(string));
+	readFTP();
 
 	return 0;
 }
 
 int loginFTP(){
-	char string[1024];
 
-	// User
+	sprintf(string, "USER %s\n", url->user);
 
-	sprintf(string, "USER %s\r", "ftp");
-	printf("%s\n", string);
-
-	if(sendFTP(string, sizeof(string)))
+	if(sendFTP())
 			return -1;
 
-	if(readFTP(string, sizeof(string)))
+	if(readFTP())
 			return -1;
 
-	// Password
+	sprintf(string, "PASS %s\n", url->password);
 
-	sprintf(string, "PASS %s\r", "ftp");
-	printf("%s\n", string);
-
-	if(sendFTP(string, sizeof(string)))
+	if(sendFTP())
 			return -1;
 
-	if(readFTP(string, sizeof(string)))
+	if(readFTP())
 			return -1;
 
 	return 0;
 
 }
 
-int sendFTP(char * string, size_t size) {
+int sendFTP() {
 	int info;
 
-	if ((info = write(controlSocket, string, size)) <= 0) {
+	if ((info = write(controlSocket, string, strlen(string))) <= 0) {
 		printf("There was no info sent.\n");
 		return -1;
 	}
@@ -81,12 +74,11 @@ int sendFTP(char * string, size_t size) {
 	return 0;
 }
 
-int readFTP(char * string, size_t size) {
+int readFTP(char * code) {
 	FILE* fp = fdopen(controlSocket, "r");
 
 	do {
-		memset(string, 0, size);
-		string = fgets(string, size, fp);
+		fgets(string, sizeof(string), fp);
 		printf("%s", string);
 	} while (!('1' <= string[0] && string[0] <= '5') || string[3] != ' ');
 
@@ -116,4 +108,9 @@ int connectSocket() {
 	}
 
 	return socketfd;
+}
+
+int enterPassiveMode(){
+	sendFTP()
+	return 0;
 }
