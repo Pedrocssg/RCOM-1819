@@ -28,7 +28,7 @@ int parseFilename(URL * url){
 		ret++;
 		memcpy(url->filename, ret, URL_SIZE);
 	}
-	
+
 	return 0;
 }
 
@@ -36,7 +36,7 @@ int getIP(URL * url) {
 	struct hostent *h;
 
   if ((h=gethostbyname(url->host)) == NULL) {
-    printf("gethostbyname error connecting to host");
+    printf("Error connecting to host\n");
     return -1;
   }
 

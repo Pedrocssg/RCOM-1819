@@ -28,19 +28,46 @@ int main(int argc, char** argv){
 	if(enterPassiveMode() == -1)
 			exit(1);
 
-	close(controlSocket);
+	if(retrieveFTP() == -1)
+			exit(1);
+
+	if(download() == -1)
+			exit(1);
+
+	if(quit() == -1)
+			exit(1);
+
 	exit(0);
 }
 
+int quit(){
+	sprintf(string, "QUIT\n");
+
+	if(sendFTP(controlSocket))
+			return -1;
+
+	if(readFTP(controlSocket, GOODBYE) == -1){
+			printf("Error while quitting\n");
+			return -1;
+	}
+
+	close(controlSocket);
+	close(dataSocket);
+
+	free(url);
+
+	return 0;
+}
+
 int connectFTP(){
-	if((controlSocket = connectSocket()) == 0) {
+	if((controlSocket = connectSocket(url->ip, url->port)) == 0) {
 			printf("Control connection failed\n");
 			return -1;
 	}
 
 	dataSocket = 0;
 
-	if(readFTP(SERVER_READY) == -1){
+	if(readFTP(controlSocket, READY) == -1){
 			printf("Error while connecting to server\n");
 			return -1;
 	}
@@ -52,20 +79,20 @@ int loginFTP(){
 
 	sprintf(string, "USER %s\n", url->user);
 
-	if(sendFTP())
+	if(sendFTP(controlSocket))
 			return -1;
 
-	if(readFTP(PASSSWORD_REQUIRED) == -1){
+	if(readFTP(controlSocket, SPECIFY_PASSWORD) == -1){
 			printf("Error while sending username\n");
 			return -1;
 	}
 
 	sprintf(string, "PASS %s\n", url->password);
 
-	if(sendFTP())
+	if(sendFTP(controlSocket))
 			return -1;
 
-	if(readFTP(LOGIN_SUCCESSFULL) == -1){
+	if(readFTP(controlSocket, LOGIN_SUCCESSFUL) == -1){
 			printf("Error while sending password\n");
 			return -1;
 	}
@@ -74,10 +101,10 @@ int loginFTP(){
 
 }
 
-int sendFTP() {
+int sendFTP(int fd){
 	int info;
 
-	if ((info = write(controlSocket, string, strlen(string))) <= 0) {
+	if ((info = write(fd, string, strlen(string))) <= 0) {
 		printf("There was no info sent.\n");
 		return -1;
 	}
@@ -85,8 +112,8 @@ int sendFTP() {
 	return 0;
 }
 
-int readFTP(char * code) {
-	FILE* fp = fdopen(controlSocket, "r");
+int readFTP(int fd, char * code) {
+	FILE* fp = fdopen(fd, "r");
 
 	do {
 		fgets(string, sizeof(string), fp);
@@ -100,15 +127,49 @@ int readFTP(char * code) {
 	return 0;
 }
 
-int connectSocket() {
+int retrieveFTP(){
+	sprintf(string, "RETR %s\n", url->path);
+
+	sendFTP(controlSocket);
+
+	if(readFTP(controlSocket, BINARY_MODE) == -1){
+			printf("Error while retrieving file\n");
+			return -1;
+	}
+
+	return 0;
+}
+
+int download(){
+	FILE * output;
+	output = fopen(url->filename, "w");
+
+	char buf[32768];
+	int data;
+
+	while((data = read(dataSocket, buf, sizeof(buf))) != 0){
+		fwrite(buf, data, 1, output);
+	}
+
+	if(readFTP(controlSocket, TRANSFER_SUCCESSFUL) == -1){
+			printf("Error while transfering file\n");
+			return -1;
+	}
+
+	fclose(output);
+
+	return 0;
+}
+
+int connectSocket(char * ip, int port) {
 	int	socketfd;
 	struct sockaddr_in server_addr;
 
 	/*server address handling*/
 	bzero((char*)&server_addr,sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_addr.s_addr = inet_addr(url->ip);	/*32 bit Internet address network byte ordered*/
-	server_addr.sin_port = htons(url->port);		/*server TCP port must be network byte ordered */
+	server_addr.sin_addr.s_addr = inet_addr(ip);	/*32 bit Internet address network byte ordered*/
+	server_addr.sin_port = htons(port);		/*server TCP port must be network byte ordered */
 
 	/*open an TCP socket*/
 	if ((socketfd = socket(AF_INET,SOCK_STREAM,0)) < 0) {
@@ -128,9 +189,9 @@ int connectSocket() {
 int enterPassiveMode(){
 	sprintf(string, "PASV\n");
 
-	sendFTP();
+	sendFTP(controlSocket);
 
-	if(readFTP(PASSIVE) == -1){
+	if(readFTP(controlSocket, PASSIVE_MODE) == -1){
 			printf("Error while setting passive mode\n");
 			return -1;
 	}
@@ -140,7 +201,11 @@ int enterPassiveMode(){
 	sprintf(url->ip, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
 	url->port = ip[4]*256 + ip[5];
 
-	printf("Port - %d\n", url->port);
+	if((dataSocket = connectSocket(url->ip, url->port)) == 0) {
+			printf("Data connection failed\n");
+			return -1;
+	}
+
 
 	return 0;
 }
