@@ -1,11 +1,11 @@
 Experience 2:
-tux2: IPaddr 172.16.41.1
-      00:1f:29:d7:45:c4
+tux2: IPaddr 172.16.51.1
+      00:21:5a:61:2f:d6
 
 Q1: How to configure vlany0?
-Creating vlan40:
+Creating vlan50:
 configure terminal
-vlan 40
+vlan 50
 end
 
 configuring port 1:
