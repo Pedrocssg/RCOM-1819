@@ -1,28 +1,54 @@
+Experience:
+tux4 eth0:
+  ip 172.16.50.254
+  mac 00:21:5a:c3:78:70
+
+tux4 eth1:
+  ip 172.16.51.253
+  mac 00:c0:df:08:d5:b0
+
+
+
 Q1: What routes are there in the tuxes? What are their meaning?
 tux1:
     Dest           Gateway          Genmask          Flags    Metric    Ref    Use IFace
     0.0.0.0        172.16.50.254    0.0.0.0          UG       0         0      0   eth0
     172.16.50.0    0.0.0.0          255.255.255.0    U        0         0      0   eth0
+    172.16.51.0    172.16.50.254    255.255.255.0    UG       0         0      0   eth0
 tux2:
     Dest           Gateway          Genmask          Flags    Metric    Ref    Use IFace
-    0.0.0.0        172.16.51.254    0.0.0.0          UG       0         0      0   eth0
+    0.0.0.0        172.16.51.253    0.0.0.0          UG       0         0      0   eth0
     172.16.50.0    172.16.51.253    255.255.255.0    UG       0         0      0   eth0
     172.16.51.0    0.0.0.0          255.255.255.0    U        0         0      0   eth0
 tux4:
     Dest           Gateway          Genmask          Flags    Metric    Ref    Use IFace
-    0.0.0.0        172.16.51.254    0.0.0.0          UG       0         0      0   eth1
     172.16.50.0    0.0.0.0          255.255.255.0    U        0         0      0   eth0
     172.16.51.0    0.0.0.0          255.255.255.0    U        0         0      0   eth1
 It means that tux1 is connected to tux4 and tux4 is connected to tux2.
 And because tux4 is a router, tux2 can communicate to tux1 through tux4.
 
 Q2: What information does an entry of the forwarding table contain?
-
+Destination: route destination
+gateway: next stop on the router
+netmask: used to determine network id from destination ip
+flags: route information
+metric: route cost
+refs: refs number for the route
+use: search counter
+interface: network adapter responsible for the gateway
 
 Q3: What ARP messages, and associated MAC addresses, are observed and why?
-
+who has 172.16.50.1 tell 172.16.50.254
+00:21:5a:5a:79:c0 (himself)
+when he doesn't recognize an ip, he asks who it is.
 
 Q4: What ICMP packets are observed and why?
-
+request and reply
 
 Q5: What are the IP and MAC addresses associated to ICMP packets and why?
+request:
+  source: ip 172.16.50.1 mac 00:21:5a:5a:79:c0 tux51
+  dest:   ip 172.16.51.1 mac 00:21:5a:c3:78:70 tux54
+reply:
+  source: ip 172.16.51.1 mac 00:21:5a:c3:78:70 tux54
+  dest:   ip 172.16.50.1 mac 00:21:5a:5a:79:c0 tux51
