@@ -14,13 +14,20 @@
 #include <strings.h>
 #include "URL.h"
 
-#define FTP_PORT 21
+
+#define FTP_PORT              21
+#define SERVER_READY          "220"
+#define DOWNLOAD_SUCCESSFULL  "226"
+#define PASSIVE               "227"
+#define LOGIN_SUCCESSFULL     "230"
+#define PASSSWORD_REQUIRED    "331"
 
 int connectSocket();
-int readFTP(char * string, size_t size);
-int sendFTP(char * string, size_t size);
+int readFTP(char * code);
+int sendFTP();
 int loginFTP();
 int connectFTP();
+int enterPassiveMode();
 
 
 #endif

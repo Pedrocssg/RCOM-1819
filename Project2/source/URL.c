@@ -13,11 +13,22 @@ int parseURL(char * urlString, URL * url){
 			}
 	}
 
-	printf("%s\n", url->user);
-	printf("%s\n", url->password);
-	printf("%s\n", url->host);
-	printf("%s\n", url->path);
+	parseFilename(url);
 
+	return 0;
+}
+
+int parseFilename(URL * url){
+	char * ret;
+
+	if((ret = strrchr(url->path, '/')) == NULL){
+		strcpy(url->filename, url->path);
+	}
+	else{
+		ret++;
+		memcpy(url->filename, ret, URL_SIZE);
+	}
+	
 	return 0;
 }
 
