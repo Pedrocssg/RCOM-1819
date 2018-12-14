@@ -1,0 +1,35 @@
+ifconfig eth0 up
+ifconfig eth0 172.16.51.1/24
+route add default gw 172.16.51.254
+
+
+enable
+configure terminal
+vlan 50
+end
+show vlan id 50
+
+configure terminal
+vlan 51
+end
+show vlan id 51
+
+configure terminal
+interface fastethernet 0/1
+switchport mode access
+switchport access vlan 50
+end
+show running-config interface fastethernet 0/1
+show interfaces fastethernet 0/1 switchport
+
+configure terminal
+interface fastethernet 0/2
+switchport mode access
+switchport access vlan 50
+end
+
+configure terminal
+interface fastethernet 0/3
+switchport mode access
+switchport access vlan 51
+end
