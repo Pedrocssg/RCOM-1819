@@ -6,6 +6,8 @@ make
 
 ./download ftp://anonymous:anonymous@ftp.up.pt/pub/CPAN/RECENT-Z.json
 
+./download ftp://demo:password@test.rebex.net/pub/example/readme.txt
+
 ./download ftp://ftp.up.pt/pub/ubuntu-releases/12.04.5/ubuntu-12.04.5-desktop-amd64.iso
 
 ./download ftp://ftp.up.pt/pub/CTAN/timestamp
