@@ -15,19 +15,24 @@
 #include "URL.h"
 
 
-#define FTP_PORT              21
-#define SERVER_READY          "220"
-#define DOWNLOAD_SUCCESSFULL  "226"
-#define PASSIVE               "227"
-#define LOGIN_SUCCESSFULL     "230"
-#define PASSSWORD_REQUIRED    "331"
+#define FTP_PORT             21
+#define READY                "220"
+#define SPECIFY_PASSWORD     "331"
+#define LOGIN_SUCCESSFUL     "230"
+#define PASSIVE_MODE         "227"
+#define BINARY_MODE          "150"
+#define TRANSFER_SUCCESSFUL  "226"
+#define GOODBYE              "221"
 
 int connectSocket();
-int readFTP(char * code);
-int sendFTP();
+int readFTP(int fd, char * code);
+int sendFTP(int fd);
 int loginFTP();
 int connectFTP();
 int enterPassiveMode();
+int retrieveFTP();
+int download();
+int quit();
 
 
 #endif
