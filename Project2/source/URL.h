@@ -20,6 +20,7 @@ typedef struct {
     char path[URL_SIZE];
     char ip[URL_SIZE];
     char filename[URL_SIZE];
+    int filesize;
     int port;
 } URL;
 
@@ -35,7 +36,7 @@ typedef struct {
 #define h_addr h_addr_list[0]	//The first address in h_addr_list.
 
 int parseURL(char * urlString, URL * url);
-int getIP(URL * url);
 int parseFilename(URL * url);
+int getIP(URL * url);
 
 #endif
