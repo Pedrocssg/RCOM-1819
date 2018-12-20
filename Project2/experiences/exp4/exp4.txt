@@ -1,10 +1,34 @@
 Q1: How to configure a static route in a commercial router?
-
+ip route 0.0.0.0 0.0.0.0 172.16.1.254
+ip route 172.16.y0.0 255.255.255.0 172.16.y1.253
 
 Q2: What are the paths followed by the packets in the experiments carried out and why?
-
+if there's a route from tux2 to tux1 through tux4, the route is tux2->tux4->tux1.
+if there's no route from tux2 to tux1, the route is tux2->router->tux4->tux1.
+if tux2 allows accepts redirects, the route is tux2->router->tux4->tux1 in the first time but then it's tux2->tux4->tux1
 
 Q3: How to configure NAT in a commercial router?
+conf t
+interface gigabitethernet 0/0 *
+ip address 172.16.y1.254 255.255.255.0
+no shutdown
+ip nat inside
+exit
 
+interface gigabitethernet 0/1*
+ip address 172.16.1.y9 255.255.255.0
+no shutdown
+ip nat outside
+exit
+
+ip nat pool ovrld 172.16.1.y9 172.16.1.y9 prefix 24
+ip nat inside source list 1 pool ovrld overload
+
+access-list 1 permit 172.16.y0.0 0.0.0.7
+access-list 1 permit 172.16.y1.0 0.0.0.7
 
 Q4: What does NAT do?
+Network Address Translation (NAT) is the process where a network device, usually a firewall,
+assigns a public address to a computer (or group of computers) inside a private network.
+The main use of NAT is to limit the number of public IP addresses an organization or company must use,
+for both economy and security purposes.
