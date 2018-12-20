@@ -13,13 +13,11 @@
 #include <netdb.h>
 #include <string.h>
 #include <strings.h>
-
-#define h_addr h_addr_list[0]	//The first address in h_addr_list.
+#include "utils.h"
 
 #define TRUE                  1
 #define FALSE                 0
 
-#define URL_SIZE              255
 #define COMMAND_SIZE          1024
 
 #define FTP_PORT              21
@@ -32,28 +30,6 @@
 #define TRANSFER_SUCCESSFUL   "226"
 #define GOODBYE               "221"
 
-typedef struct {
-    char user[URL_SIZE];
-    char password[URL_SIZE];
-    char host[URL_SIZE];
-    char path[URL_SIZE];
-    char ip[URL_SIZE];
-    char filename[URL_SIZE];
-    int filesize;
-    int port;
-} URL;
-
-typedef struct {
-  char *h_name;	//Official name of the host.
-  char **h_aliases;	//A NULL-terminated array of alternate names for the host.
-  int h_addrtype;	//The type of address being returned; usually AF_INET.
-  int h_length;	//The length of the address in bytes.
-  char **h_addr_list;	//A zero-terminated array of network addresses for the host.
-  //Host addresses are in Network Byte Order.
-} hostent;
-
-int parseURL(char * urlString, URL * url);
-int getIP(URL * url);
 int connectToFTP();
 int login();
 int passive();
@@ -62,10 +38,7 @@ int retrieve();
 int download();
 int quit();
 
-int parseFilename(URL * url);
-int connectSocket();
 int ftpSend(int fd);
 int ftpRead(int fd, char * code, int print);
-void progress(int size);
 
 #endif
