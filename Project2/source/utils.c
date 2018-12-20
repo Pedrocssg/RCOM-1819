@@ -5,7 +5,8 @@ int parseURL(char * urlString, URL * url){
 
 	if(sscanf(urlString, "ftp://%99[^:]:%99[^@]@%99[^/]/%99[^\n]", url->user, url->password, url->host, url->path) != 4){
 			if(sscanf(urlString, "ftp://%99[^/]/%99[^\n]",url->host, url->path) != 2){
-					printf("Error while parsing URL. Please enter in this format 'ftp://user:password@host/filepath'\n");
+					printf("000 Error while parsing URL.\n");
+					printf("000 Please enter in this format 'ftp://user:password@host/filepath'.\n");
 					return -1;
 			} else{
 				strcpy(url->user, "ftp");
@@ -36,7 +37,7 @@ int getIP(URL * url) {
 	struct hostent *h;
 
   if ((h=gethostbyname(url->host)) == NULL) {
-    printf("Error connecting to host\n");
+    printf("000 Error connecting to host.\n");
     return -1;
   }
 

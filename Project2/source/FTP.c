@@ -7,7 +7,7 @@ char string[COMMAND_SIZE];
 
 int main(int argc, char** argv){
 	if (argc != 2) {
-			printf("Please insert a valid url: './download ftp://[<user>:<password>@]<host>/<url-path>'\n");
+			printf("000 Please insert a valid url: './download ftp://[<user>:<password>@]<host>/<url-path>'\n");
 			exit(1);
 	}
 
