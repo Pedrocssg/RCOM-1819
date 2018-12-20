@@ -5,14 +5,19 @@ int parseURL(char * urlString, URL * url){
 
 	if(sscanf(urlString, "ftp://%99[^:]:%99[^@]@%99[^/]/%99[^\n]", url->user, url->password, url->host, url->path) != 4){
 			if(sscanf(urlString, "ftp://%99[^/]/%99[^\n]",url->host, url->path) != 2){
-					printf("000 Error while parsing URL.\n");
-					printf("000 Please enter in this format 'ftp://user:password@host/filepath'.\n");
+					printf("%s000%s Error while parsing URL.\n", RED, RESET);
+					printf("%s000%s Please enter in this format 'ftp://user:password@host/filepath'.\n", RED, RESET);
 					return -1;
 			} else{
 				strcpy(url->user, "ftp");
 				strcpy(url->password, "ftp");
 			}
 	}
+
+	printf("%s000%s Username: %s\n", BLUE, RESET, url->user);
+	printf("%s000%s Password: %s\n", BLUE, RESET, url->password);
+	printf("%s000%s Host: %s\n", BLUE, RESET, url->host);
+	printf("%s000%s Path: %s\n", BLUE, RESET, url->path);
 
 	parseFilename(url);
 
@@ -37,11 +42,14 @@ int getIP(URL * url) {
 	struct hostent *h;
 
   if ((h=gethostbyname(url->host)) == NULL) {
-    printf("000 Error connecting to host.\n");
+    printf("%s000%s Error connecting to host.\n", RED, RESET);
     return -1;
   }
 
   strcpy(url->ip, inet_ntoa(*((struct in_addr *)h->h_addr)));
+
+	printf("%s000%s IP: %s\n", BLUE, RESET, url->ip);
+	printf("%s000%s Port: %d\n", BLUE, RESET, url->port);
 
 	return 0;
 }
@@ -71,16 +79,15 @@ int connectSocket(char * ip, int port) {
 	return socketfd;
 }
 
-
 void progress(URL * url, int size){
 	int progress = (int)(((double)size/url->filesize)*100);
 	int i;
 
 	printf("\r");
-	printf("000 [");
+	printf("%s000%s [", BLUE, RESET);
 
 	for(i = 0; i < progress/2; i++)
-			printf("#");
+			printf("%s#%s",PINK, RESET);
 
 	for(i = 0; i < (50-progress/2); i++)
 			printf(".");

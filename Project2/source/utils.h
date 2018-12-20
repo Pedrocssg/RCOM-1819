@@ -19,6 +19,12 @@
 
 #define URL_SIZE              255
 
+#define RED                   "\033[0;31m"
+#define GREEN                 "\033[0;32m"
+#define PINK                  "\033[1;35m"
+#define BLUE                  "\033[0;36m"
+#define RESET                 "\033[0m"
+
 typedef struct {
     char user[URL_SIZE];
     char password[URL_SIZE];

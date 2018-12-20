@@ -4,10 +4,12 @@ URL * url;
 int controlSocket;
 int dataSocket;
 char string[COMMAND_SIZE];
+char returnCode[COMMAND_SIZE];
+char returnMessage[COMMAND_SIZE];
 
 int main(int argc, char** argv){
 	if (argc != 2) {
-			printf("000 Please insert a valid url: './download ftp://[<user>:<password>@]<host>/<url-path>'\n");
+			printf("%s000%s Please insert a valid url: './download ftp://[<user>:<password>@]<host>/<url-path>'\n", RED, RESET);
 			exit(1);
 	}
 
@@ -88,6 +90,9 @@ int passive(){
 	sprintf(url->ip, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
 	url->port = ip[4]*256 + ip[5];
 
+	printf("%s000%s IP: %s\n", BLUE, RESET, url->ip);
+	printf("%s000%s Port: %d\n", BLUE, RESET, url->port);
+
 	if((dataSocket = connectSocket(url->ip, url->port)) == 0)
 			return -1;
 
@@ -102,7 +107,7 @@ int filesize(){
 			return -1;
 
 	if(ftpRead(controlSocket, FILESIZE, FALSE) == -1){
-			printf("550 File not found\n");
+			printf("%s%s%s %s\n", RED, "550", RESET, "File not found");
 			return -1;
 	}
 
@@ -130,7 +135,7 @@ int download(){
 	char buf[32768];
 	int data, size = 0;
 
-	printf("000 Transfering %s\n", url->filename);
+	printf("%s000%s Transfering %s\n", BLUE, RESET, url->filename);
 
 	while((data = read(dataSocket, buf, sizeof(buf))) != 0){
 		fwrite(buf, data, 1, output);
@@ -179,8 +184,13 @@ int ftpRead(int fd, char * code, int print) {
 
 	do {
 			fgets(string, sizeof(string), file);
-			if(print)
-					printf("%s", string);
+			if(print){
+					char digit1, digit2, digit3;
+					if(sscanf(string, "%c%c%c-%[^\t\n]", &digit1, &digit2, &digit3, returnMessage) != 4)
+						sscanf(string, "%c%c%c %[^\t\n]", &digit1, &digit2, &digit3, returnMessage);
+					sprintf(returnCode, "%c%c%c", digit1, digit2, digit3);
+					printf("%s%s%s %s\n", GREEN, returnCode, RESET, returnMessage);
+			}
 	} while (!('1' <= string[0] && string[0] <= '5') || string[3] != ' ');
 
 	if(strncmp(code, string, strlen(code)) != 0)
