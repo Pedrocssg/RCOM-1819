@@ -191,7 +191,7 @@ int ftpRead(int fd, char * code, int print) {
 					sprintf(returnCode, "%c%c%c", digit1, digit2, digit3);
 					printf("%s%s%s %s\n", GREEN, returnCode, RESET, returnMessage);
 			}
-	} while (!('1' <= string[0] && string[0] <= '5') || string[3] != ' ');
+	} while (!(string[0] >= '1' && string[0] <= '5') || string[3] != ' ');
 
 	if(strncmp(code, string, strlen(code)) != 0)
 			return -1;
