@@ -1,4 +1,4 @@
-# shell script to test our program
+#!/bin/bash
 
 make
 
